@@ -4,6 +4,7 @@
   const base = (cfg.baseUrl || '').replace(/\/$/, '');
   const banner = document.getElementById('offlineBanner');
   const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+  if (isLocalHost && banner) banner.remove();
 
   function connectionAvailable() {
     return isLocalHost || navigator.onLine;
