@@ -17,6 +17,9 @@ $router->get('/registro', [AuthController::class, 'registerForm'], ['guest']);
 $router->post('/registro', [AuthController::class, 'register'], ['guest']);
 $router->post('/salir', [AuthController::class, 'logout'], ['auth']);
 
+$router->get('/vecinos', [CitizenController::class, 'landing']);
+$router->post('/vecinos/registro', [CitizenController::class, 'registerNeighbor'], ['guest']);
+
 $router->get('/panel', [DashboardController::class, 'index'], ['permission:dashboard.view']);
 $router->get('/mi-app', [CitizenController::class, 'index'], ['permission:dashboard.view']);
 $router->post('/mi-app/panico', [CitizenController::class, 'panic'], ['permission:reports.create']);
