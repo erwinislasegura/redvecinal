@@ -17,12 +17,12 @@ $router->get('/registro', [AuthController::class, 'registerForm'], ['guest']);
 $router->post('/registro', [AuthController::class, 'register'], ['guest']);
 $router->post('/salir', [AuthController::class, 'logout'], ['auth']);
 
-$router->get('/vecinos', [CitizenController::class, 'landing']);
-$router->post('/vecinos/registro', [CitizenController::class, 'registerNeighbor'], ['guest']);
+$router->get('/descargar-vecinos', [CitizenController::class, 'landing']);
+$router->post('/descargar-vecinos/registro', [CitizenController::class, 'registerNeighbor'], ['guest']);
 
 $router->get('/panel', [DashboardController::class, 'index'], ['permission:dashboard.view']);
-$router->get('/mi-app', [CitizenController::class, 'index'], ['permission:dashboard.view']);
-$router->post('/mi-app/panico', [CitizenController::class, 'panic'], ['permission:reports.create']);
+$router->get('/mi-app', [CitizenController::class, 'index'], ['auth']);
+$router->post('/mi-app/panico', [CitizenController::class, 'panic'], ['auth']);
 $router->get('/reportes', [ReportController::class, 'index'], ['auth']);
 $router->get('/reportes/nuevo', [ReportController::class, 'create'], ['permission:reports.create']);
 $router->post('/reportes', [ReportController::class, 'store'], ['permission:reports.create']);
