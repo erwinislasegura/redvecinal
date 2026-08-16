@@ -15,7 +15,7 @@ $router->get('/registro', [AuthController::class, 'registerForm'], ['guest']);
 $router->post('/registro', [AuthController::class, 'register'], ['guest']);
 $router->post('/salir', [AuthController::class, 'logout'], ['auth']);
 
-$router->get('/panel', [DashboardController::class, 'index'], ['auth']);
+$router->get('/panel', [DashboardController::class, 'index'], ['permission:dashboard.view']);
 $router->get('/reportes', [ReportController::class, 'index'], ['auth']);
 $router->get('/reportes/nuevo', [ReportController::class, 'create'], ['permission:reports.create']);
 $router->post('/reportes', [ReportController::class, 'store'], ['permission:reports.create']);
@@ -45,3 +45,8 @@ $router->post('/administracion/comunas', [AdminController::class, 'storeCommune'
 $router->post('/administracion/sectores', [AdminController::class, 'storeSector'], ['permission:communes.manage']);
 $router->get('/administracion/roles', [AdminController::class, 'roles'], ['permission:roles.manage']);
 $router->post('/administracion/roles/{id}', [AdminController::class, 'updateRole'], ['permission:roles.manage']);
+$router->get('/administracion/auditoria', [AdminController::class, 'audit'], ['permission:audit.view']);
+$router->get('/administracion/configuracion', [AdminController::class, 'settings'], ['permission:settings.manage']);
+$router->post('/administracion/configuracion', [AdminController::class, 'updateSettings'], ['permission:settings.manage']);
+$router->post('/administracion/contactos', [AdminController::class, 'storeContact'], ['permission:settings.manage']);
+$router->post('/administracion/contactos/{id}/estado', [AdminController::class, 'contactStatus'], ['permission:settings.manage']);
