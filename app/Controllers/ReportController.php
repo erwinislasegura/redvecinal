@@ -71,7 +71,8 @@ final class ReportController extends Controller
         $dispatches=Database::query('SELECT d.*,u.name AS creator_name FROM dispatches d JOIN users u ON u.id=d.created_by WHERE d.report_id=? ORDER BY d.requested_at DESC',[$id])->fetchAll();
         $media=Database::query('SELECT * FROM report_media WHERE report_id=? ORDER BY created_at',[$id])->fetchAll();
         $operators=Database::query("SELECT u.id,u.name,r.name AS role_name FROM users u JOIN roles r ON r.id=u.role_id WHERE u.commune_id=? AND r.slug IN ('operador','respondedor','admin_municipal') AND u.status='activo'",[$report['commune_id']])->fetchAll();
-        $this->view('reports/show_wrapper',compact('report','comments','history','dispatches','operators','media')+['title'=>$report['public_code']]);
+        $securityContact=null;if(Auth::can('reports.manage')){try{$securityContact=Database::query('SELECT name,relationship,phone FROM user_emergency_contacts WHERE user_id=? LIMIT 1',[$report['user_id']])->fetch()?:null;}catch(\Throwable){$securityContact=null;}}
+        $this->view('reports/show_wrapper',compact('report','comments','history','dispatches','operators','media','securityContact')+['title'=>$report['public_code']]);
     }
 
     public function comment(string $id): void
