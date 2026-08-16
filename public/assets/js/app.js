@@ -45,6 +45,40 @@
     neighborCommune.addEventListener('change',filterSectors);filterSectors();
   }
 
+  const mapCommuneSelect=document.querySelector('[data-map-commune-select]');
+  const settingsMapElement=document.getElementById('settingsMapPreview');
+  if(mapCommuneSelect&&settingsMapElement&&window.L){
+    const form=mapCommuneSelect.closest('form');
+    const latitude=form.querySelector('[name=map_center_lat]');
+    const longitude=form.querySelector('[name=map_center_lng]');
+    const zoom=form.querySelector('[name=map_zoom]');
+    const status=form.querySelector('[data-map-geocode-status]');
+    const submit=form.querySelector('[type=submit]');
+    const initialLat=Number(latitude.value)||-33.4489;
+    const initialLng=Number(longitude.value)||-70.6693;
+    const map=L.map(settingsMapElement,{zoomControl:true,scrollWheelZoom:false}).setView([initialLat,initialLng],Number(zoom.value)||13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+    let marker=L.marker([initialLat,initialLng]).addTo(map);
+    let requestController=null;
+    const updatePreview=(lat,lng)=>{marker.setLatLng([lat,lng]);map.setView([lat,lng],Number(zoom.value)||13);setTimeout(()=>map.invalidateSize(),80)};
+    zoom.addEventListener('change',()=>map.setZoom(Number(zoom.value)||13));
+    mapCommuneSelect.addEventListener('change',async()=>{
+      const option=mapCommuneSelect.options[mapCommuneSelect.selectedIndex];
+      if(!option||!option.value)return;
+      if(requestController)requestController.abort();requestController=new AbortController();
+      status.textContent='Buscando comuna…';status.classList.add('loading');status.classList.remove('error');if(submit)submit.disabled=true;
+      const query=`${option.dataset.name}, ${option.dataset.region}, Chile`;
+      try{
+        const response=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=cl&q=${encodeURIComponent(query)}`,{headers:{Accept:'application/json'},signal:requestController.signal});
+        if(!response.ok)throw new Error('geocode');const results=await response.json();if(!results.length)throw new Error('empty');
+        const lat=Number(results[0].lat),lng=Number(results[0].lon);latitude.value=lat.toFixed(7);longitude.value=lng.toFixed(7);updatePreview(lat,lng);
+        status.textContent='✓ Comuna ubicada';status.classList.remove('loading','error');
+      }catch(error){if(error.name==='AbortError')return;status.textContent='No se pudo ubicar. Intenta nuevamente.';status.classList.remove('loading');status.classList.add('error');}
+      finally{if(submit)submit.disabled=false;}
+    });
+    setTimeout(()=>map.invalidateSize(),100);
+  } else if(mapCommuneSelect&&settingsMapElement){settingsMapElement.innerHTML='<div class="map-unavailable">Conéctate a internet para obtener la ubicación de la comuna.</div>';}
+
   document.querySelectorAll('[data-table-search]').forEach((input) => {
     input.addEventListener('input', () => {
       const table = document.getElementById(input.dataset.tableSearch);
