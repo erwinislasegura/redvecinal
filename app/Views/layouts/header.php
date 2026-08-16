@@ -2,6 +2,8 @@
 $currentUser = auth();
 $message = flash('message');
 $messageType = flash('type', 'success');
+$viewHost = preg_replace('/:\\d+$/', '', $_SERVER['HTTP_HOST'] ?? '');
+$isLocalView = in_array($viewHost, ['localhost', '127.0.0.1', '::1'], true);
 $unreadNotifications = $currentUser
     ? (int) \App\Core\Database::query('SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at IS NULL', [$currentUser['id']])->fetchColumn()
     : 0;
@@ -20,7 +22,7 @@ $unreadNotifications = $currentUser
   <link rel="stylesheet" href="<?= asset('css/admin.css') ?>">
 </head>
 <body class="<?= !empty($publicPage) ? 'public-body' : 'app-body' ?>">
-<div id="offlineBanner" class="offline-banner" hidden><?= svg_icon('alert') ?> Sin conexión: los reportes nuevos se guardarán para enviarse después.</div>
+<?php if (!$isLocalView): ?><div id="offlineBanner" class="offline-banner" hidden><?= svg_icon('alert') ?> Sin conexión: los reportes nuevos se guardarán para enviarse después.</div><?php endif; ?>
 
 <?php if ($currentUser): ?>
   <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
