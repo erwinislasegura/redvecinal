@@ -1,5 +1,5 @@
-const CACHE = 'redvecinal-v4';
-const STATIC = ['./public/assets/css/bootstrap.min.css','./public/assets/css/app.css','./public/assets/css/admin.css','./public/assets/js/bootstrap.bundle.min.js','./public/assets/js/app.js','./public/assets/img/icon.svg','./','./ingresar'];
+const CACHE = 'redvecinal-v5';
+const STATIC = ['./public/assets/css/bootstrap.min.css','./public/assets/css/app.css','./public/assets/css/admin.css','./public/assets/css/admin-modules.css','./public/assets/js/bootstrap.bundle.min.js','./public/assets/js/app.js','./public/assets/img/icon.svg','./','./ingresar'];
 self.addEventListener('install', (event) => event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(STATIC)).catch(() => {})));
 self.addEventListener('activate', (event) => event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))));
 self.addEventListener('fetch', (event) => {
