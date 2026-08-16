@@ -35,8 +35,7 @@ final class AuthController extends Controller
 
     public function registerForm(): void
     {
-        $communes = Database::query("SELECT * FROM communes WHERE status='activa' ORDER BY name")->fetchAll();
-        $this->view('auth/register', ['title' => 'Crear cuenta', 'communes' => $communes, 'publicPage' => true]);
+        $this->redirect('vecinos#registro');
     }
 
     public function register(): void
