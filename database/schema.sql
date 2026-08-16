@@ -68,6 +68,19 @@ CREATE TABLE IF NOT EXISTS users (
   INDEX idx_user_commune (commune_id), INDEX idx_user_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS user_emergency_contacts (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  relationship VARCHAR(80) NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  notes VARCHAR(500) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_user_emergency_contact (user_id),
+  CONSTRAINT fk_uec_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS report_types (
   id SMALLINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   category ENUM('seguridad','barrio','emergencia','mascota') NOT NULL,
