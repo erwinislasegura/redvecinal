@@ -45,6 +45,12 @@
     neighborCommune.addEventListener('change',filterSectors);filterSectors();
   }
 
+  document.querySelectorAll('[data-rut]').forEach((input)=>{
+    const formatRut=(value)=>{const clean=value.toUpperCase().replace(/[^0-9K]/g,'').slice(0,9);if(clean.length<2)return clean;const body=clean.slice(0,-1).replace(/\B(?=(\d{3})+(?!\d))/g,'.');return `${body}-${clean.slice(-1)}`;};
+    input.addEventListener('input',()=>{input.value=formatRut(input.value);input.classList.remove('is-invalid')});
+    if(input.value)input.value=formatRut(input.value);
+  });
+
   const mapCommuneSelect=document.querySelector('[data-map-commune-select]');
   const settingsMapElement=document.getElementById('settingsMapPreview');
   if(mapCommuneSelect&&settingsMapElement&&window.L){
