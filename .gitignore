@@ -1,4 +1,3 @@
-/config/database.php
 /storage/installed.lock
 /storage/uploads/*
 !/storage/uploads/.gitkeep
@@ -6,4 +5,3 @@
 !/storage/logs/.gitkeep
 .DS_Store
 Thumbs.db
-
