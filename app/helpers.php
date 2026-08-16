@@ -16,6 +16,17 @@ function config(string $key, mixed $default = null): mixed
 function url(string $path = ''): string
 {
     $base = rtrim((string) config('base_url', ''), '/');
+    if ($base === '') {
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $scheme = $https ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $scriptDirectory = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
+        if (str_ends_with($scriptDirectory, '/install')) {
+            $scriptDirectory = dirname($scriptDirectory);
+        }
+        $scriptDirectory = $scriptDirectory === '/' || $scriptDirectory === '.' ? '' : '/' . trim($scriptDirectory, '/');
+        $base = $scheme . '://' . $host . $scriptDirectory;
+    }
     return $base . '/' . ltrim($path, '/');
 }
 
