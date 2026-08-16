@@ -6,7 +6,7 @@
 
   <section class="panic-card">
     <div class="panic-copy"><span class="panic-shield"><?= svg_icon('alert') ?></span><div><span>EMERGENCIA</span><h2>Botón de pánico</h2><p>Envía una alerta crítica con tu ubicación a la central comunal.</p></div></div>
-    <form action="<?= url('mi-app/panico') ?>" method="post" data-panic-form><?= csrf_field() ?><input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="address" value="<?= e(auth()['address']??'') ?>"><button type="button" class="panic-button" data-panic-trigger><i></i><strong>MANTENER Y ACTIVAR</strong><small>Presiona durante 2 segundos</small></button><p class="panic-status" data-panic-status>En riesgo vital, llama directamente al 133, 132 o 131.</p></form>
+    <form action="<?= url('mi-app/panico') ?>" method="post" data-panic-form><?= csrf_field() ?><input type="hidden" name="latitude"><input type="hidden" name="longitude"><input type="hidden" name="accuracy"><input type="hidden" name="captured_at"><input type="hidden" name="location_error"><button type="button" class="panic-button" data-panic-trigger><i></i><strong>MANTENER Y ACTIVAR</strong><small>Presiona durante 2 segundos</small></button><p class="panic-status" data-panic-status>En riesgo vital, llama directamente al 133, 132 o 131.</p></form>
   </section>
 
   <section class="citizen-actions" aria-label="Acciones principales">

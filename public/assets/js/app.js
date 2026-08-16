@@ -151,15 +151,18 @@
     const sendPanic = () => {
       if (activated) return; activated = true; resetHold(); panicButton.disabled = true; panicButton.classList.add('activated');
       status.textContent = 'Obteniendo ubicación y enviando alerta…';
-      const finish = (position) => {
+      const finish = (position, locationError = '') => {
         if (position) { form.querySelector('[name=latitude]').value=position.coords.latitude; form.querySelector('[name=longitude]').value=position.coords.longitude; }
         if (!connectionAvailable()) {
-          const data=Object.fromEntries(new FormData(form).entries()); data._queued_at=new Date().toISOString(); const items=getPanicQueue(); items.push(data); savePanicQueue(items);
+          const data=Object.fromEntries(new FormData(form).entries()); data.accuracy=position?position.coords.accuracy:null;data.captured_at=new Date().toISOString();data.location_error=locationError;data._queued_at=new Date().toISOString(); const items=getPanicQueue(); items.push(data); savePanicQueue(items);
           status.textContent='Sin conexión: alerta guardada. Se enviará automáticamente. Llama al 133, 132 o 131 si existe riesgo inmediato.'; panicButton.querySelector('strong').textContent='ALERTA EN ESPERA'; return;
         }
+        const accuracy=form.querySelector('[name=accuracy]');if(accuracy)accuracy.value=position?position.coords.accuracy:'';
+        const captured=form.querySelector('[name=captured_at]');if(captured)captured.value=new Date().toISOString();
+        const locationErrorField=form.querySelector('[name=location_error]');if(locationErrorField)locationErrorField.value=locationError;
         status.textContent='Enviando alerta crítica a la central…'; form.submit();
       };
-      if (navigator.geolocation) navigator.geolocation.getCurrentPosition(finish,()=>finish(null),{enableHighAccuracy:true,timeout:8000,maximumAge:0}); else finish(null);
+      if (navigator.geolocation) navigator.geolocation.getCurrentPosition((position)=>finish(position),(error)=>finish(null,error.message||'Permiso de ubicación denegado'),{enableHighAccuracy:true,timeout:12000,maximumAge:0}); else finish(null,'Geolocalización no disponible');
     };
     const startHold = (event) => { event.preventDefault(); if(activated)return; panicButton.classList.add('holding'); holdTimer=setTimeout(sendPanic,2000); };
     panicButton.addEventListener('pointerdown',startHold);

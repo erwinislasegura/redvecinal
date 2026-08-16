@@ -87,12 +87,15 @@ final class CitizenController extends Controller
         if(!$type){$this->panicResponse(false,0,'No existe un tipo de emergencia activo.');}
         $latitude=is_numeric($input['latitude']??null)?(float)$input['latitude']:null;
         $longitude=is_numeric($input['longitude']??null)?(float)$input['longitude']:null;
+        if($latitude!==null&&($latitude < -90||$latitude > 90))$latitude=null;if($longitude!==null&&($longitude < -180||$longitude > 180))$longitude=null;
+        $hasGps=$latitude!==null&&$longitude!==null;$accuracy=is_numeric($input['accuracy']??null)?min(100000,max(0,(int)round((float)$input['accuracy']))):null;$capturedAt=mb_substr(trim((string)($input['captured_at']??'')),0,40);
         $note=trim((string)($input['note']??''));
-        $description='Botón de pánico activado desde la aplicación vecinal.' . ($note!==''?' Detalle: '.$note:'');
-        $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>$description,'address'=>trim((string)($input['address']??$user['address']??'')),'latitude'=>$latitude,'longitude'=>$longitude,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
+        $description='Botón de pánico activado desde la aplicación vecinal. '.($hasGps?'Ubicación GPS capturada desde el dispositivo'.($accuracy!==null?' con precisión aproximada de ±'.$accuracy.' m':'').($capturedAt!==''?' a las '.$capturedAt:'').'.':'El dispositivo no permitió obtener ubicación GPS.').($note!==''?' Detalle: '.$note:'');
+        $address=$hasGps?'Ubicación GPS: '.number_format($latitude,7,'.','').', '.number_format($longitude,7,'.',''):('GPS no disponible · '.($user['address']??'domicilio no informado'));
+        $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>$description,'address'=>$address,'latitude'=>$latitude,'longitude'=>$longitude,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
         PanicAlert::notify($user,$id);
-        Audit::log('panico.activado','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude]);
-        $this->panicResponse(true,$id,'La alerta fue enviada a la central.');
+        Audit::log('panico.activado','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude,'accuracy'=>$accuracy,'captured_at'=>$capturedAt]);
+        $this->panicResponse(true,$id,$hasGps?'La alerta y ubicación GPS fueron enviadas a la central.':'La alerta fue enviada, pero el teléfono no entregó la ubicación GPS.');
     }
 
     private function panicResponse(bool $ok,int $id,string $message): never

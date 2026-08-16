@@ -58,7 +58,7 @@ final class DispatchController extends Controller
         $this->validateCsrf();
         $status = $_POST['status'] ?? '';
         if (!in_array($status, self::STATUSES, true)) $this->redirect('despachos','Estado de despacho inválido.','danger');
-        $dispatch = Database::query('SELECT d.*,r.commune_id,r.status AS report_status FROM dispatches d JOIN reports r ON r.id=d.report_id WHERE d.id=?', [$id])->fetch();
+        $dispatch = Database::query('SELECT d.*,r.commune_id,r.user_id,r.status AS report_status FROM dispatches d JOIN reports r ON r.id=d.report_id WHERE d.id=?', [$id])->fetch();
         $user = Auth::user();
         if (!$dispatch || ($user['role_slug'] !== 'superadmin' && (int)$dispatch['commune_id'] !== (int)$user['commune_id'])) {
             $this->redirect('despachos','Despacho no encontrado.','danger');
@@ -67,6 +67,8 @@ final class DispatchController extends Controller
         if (in_array($status, ['aceptado','en_camino','en_sitio'], true) && !in_array($dispatch['report_status'], ['resuelto','cerrado','rechazado'], true)) {
             Database::query("UPDATE reports SET status='en_proceso' WHERE id=?", [$dispatch['report_id']]);
         }
+        $statusLabels=['solicitado'=>'Solicitado','aceptado'=>'Aceptado','en_camino'=>'En camino','en_sitio'=>'En el lugar','finalizado'=>'Finalizado','cancelado'=>'Cancelado'];
+        Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'dispatch_update','Avance del servicio enviado',?,?)",[$dispatch['user_id'],($dispatch['unit_name']?:'La unidad').' · '.($statusLabels[$status]??$status),url('vecinos/').'?page=reportes']);
         Audit::log('despacho.estado_actualizado','dispatch',(int)$id,['status'=>$dispatch['status']],['status'=>$status]);
         $this->redirect('despachos','Estado del despacho actualizado.');
     }

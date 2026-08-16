@@ -89,6 +89,8 @@ final class ReportController extends Controller
         $assigned=(int)($_POST['assigned_to']??0)?:null;
         Database::query('UPDATE reports SET status=?,assigned_to=?,resolved_at=IF(? IN (\'resuelto\',\'cerrado\'),NOW(),NULL) WHERE id=?',[$status,$assigned,$status,$id]);
         Database::query('INSERT INTO report_status_history (report_id,user_id,old_status,new_status,notes) VALUES (?,?,?,?,?)',[$id,Auth::user()['id'],$report['status'],$status,trim($_POST['notes']??'')]);
+        $assignedName=$assigned?(string)Database::query('SELECT name FROM users WHERE id=?',[$assigned])->fetchColumn():'';
+        Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'report_update','Actualización de tu reporte',?,?)",[$report['user_id'],'Estado: '.str_replace('_',' ',$status).($assignedName!==''?' · Asignado a '.$assignedName:''),url('vecinos/').'?page=reportes']);
         Audit::log('reporte.estado_actualizado','report',$id,['status'=>$report['status'],'assigned_to'=>$report['assigned_to']],['status'=>$status,'assigned_to'=>$assigned]);
         $this->redirect('reportes/'.$id,'Estado actualizado.');
     }
@@ -99,6 +101,8 @@ final class ReportController extends Controller
         $service=$_POST['service']??'otro'; $allowed=['seguridad_municipal','carabineros','bomberos','ambulancia','transito','aseo','alumbrado','otro']; if(!in_array($service,$allowed,true))$service='otro';
         Database::query('INSERT INTO dispatches (report_id,created_by,service,unit_name,contact_name,notes) VALUES (?,?,?,?,?,?)',[$id,Auth::user()['id'],$service,trim($_POST['unit_name']??''),trim($_POST['contact_name']??''),trim($_POST['notes']??'')]);
         Database::query("UPDATE reports SET status='asignado' WHERE id=? AND status IN ('nuevo','validando')",[$id]);
+        $serviceLabels=['seguridad_municipal'=>'Seguridad municipal','carabineros'=>'Carabineros','bomberos'=>'Bomberos','ambulancia'=>'Ambulancia / SAMU','transito'=>'Tránsito','aseo'=>'Aseo y ornato','alumbrado'=>'Alumbrado público','otro'=>'Otro servicio'];$unit=trim($_POST['unit_name']??'');
+        Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'dispatch','Servicio enviado a tu reporte',?,?)",[$report['user_id'],($serviceLabels[$service]??$service).($unit!==''?' · Unidad '.$unit:''),url('vecinos/').'?page=reportes']);
         Audit::log('reporte.servicio_despachado','report',$id,null,['service'=>$service,'unit_name'=>trim($_POST['unit_name']??'')]);
         $this->redirect('reportes/'.$id,'Servicio despachado y registrado.');
     }
