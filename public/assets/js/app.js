@@ -38,6 +38,13 @@
     if (priority && input.dataset.priority) priority.value = input.dataset.priority;
   }));
 
+  const neighborCommune=document.querySelector('[data-neighbor-commune]');
+  const neighborSector=document.querySelector('[data-neighbor-sector]');
+  if(neighborCommune&&neighborSector){
+    const filterSectors=()=>{const commune=neighborCommune.value;Array.from(neighborSector.options).forEach((option,index)=>{if(index===0)return;option.hidden=option.dataset.commune!==commune;if(option.hidden&&option.selected)neighborSector.value='';});};
+    neighborCommune.addEventListener('change',filterSectors);filterSectors();
+  }
+
   document.querySelectorAll('[data-table-search]').forEach((input) => {
     input.addEventListener('input', () => {
       const table = document.getElementById(input.dataset.tableSearch);
