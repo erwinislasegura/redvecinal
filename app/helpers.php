@@ -99,6 +99,18 @@ function report_badge(string $status): string
     };
 }
 
+function dispatch_badge(string $status): string
+{
+    return match ($status) {
+        'solicitado' => 'warning',
+        'aceptado' => 'info',
+        'en_camino' => 'primary',
+        'en_sitio', 'finalizado' => 'success',
+        'cancelado' => 'secondary',
+        default => 'secondary',
+    };
+}
+
 function svg_icon(string $name, string $class = ''): string
 {
     $icons = [
@@ -106,6 +118,7 @@ function svg_icon(string $name, string $class = ''): string
         'alert' => '<path d="M10.3 3.5 2.4 17.2A2 2 0 0 0 4.1 20h15.8a2 2 0 0 0 1.7-2.8L13.7 3.5a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         'paw' => '<circle cx="11" cy="4.5" r="2"/><circle cx="18" cy="8.5" r="2"/><circle cx="5" cy="8.5" r="2"/><path d="M12 9c-4 0-7 3.4-7 6.5 0 2.2 1.7 3.5 3.6 3.5 1.4 0 2.2-.8 3.4-.8s2 .8 3.4.8c1.9 0 3.6-1.3 3.6-3.5C19 12.4 16 9 12 9Z"/>',
         'device' => '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M8 19v2"/><path d="M16 19v2"/><circle cx="12" cy="12" r="3"/><path d="M12 9V7"/>',
+        'truck' => '<path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
         'users' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
         'map' => '<path d="m3 6 5-3 8 3 5-3v15l-5 3-8-3-5 3Z"/><path d="M8 3v15"/><path d="M16 6v15"/>',
         'shield' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>',
