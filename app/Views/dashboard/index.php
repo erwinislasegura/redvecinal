@@ -6,6 +6,7 @@
   </div>
   <div class="hero-meta">
     <span><?= svg_icon('clock') ?> Actualizado <?= date('H:i') ?></span>
+    <?php if(can('dispatch.manage')): ?><a class="btn btn-light" href="<?= url('despachos') ?>"><?= svg_icon('truck') ?> Ver despachos</a><?php endif; ?>
     <?php if(can('reports.create')): ?><a class="btn btn-light" href="<?= url('reportes/nuevo') ?>"><?= svg_icon('plus') ?> Crear reporte</a><?php endif; ?>
   </div>
 </section>
