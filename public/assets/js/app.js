@@ -31,6 +31,17 @@
     if (priority && input.dataset.priority) priority.value = input.dataset.priority;
   }));
 
+  document.querySelectorAll('[data-table-search]').forEach((input) => {
+    input.addEventListener('input', () => {
+      const table = document.getElementById(input.dataset.tableSearch);
+      if (!table) return;
+      const term = input.value.trim().toLocaleLowerCase('es');
+      table.querySelectorAll('tbody tr').forEach((row) => {
+        row.hidden = term !== '' && !row.textContent.toLocaleLowerCase('es').includes(term);
+      });
+    });
+  });
+
   function getQueue() { try { return JSON.parse(localStorage.getItem('redvecinal_offline_reports') || '[]'); } catch (error) { return []; } }
   function saveQueue(items) { localStorage.setItem('redvecinal_offline_reports', JSON.stringify(items)); }
 
@@ -64,4 +75,3 @@
 
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register(base + '/service-worker.js', {scope: base + '/'}).catch(() => {}));
 }());
-
