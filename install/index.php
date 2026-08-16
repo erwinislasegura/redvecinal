@@ -2,7 +2,9 @@
 declare(strict_types=1);
 
 $root = dirname(__DIR__);
-$installed = file_exists($root . '/config/database.php');
+$host = preg_replace('/:\\d+$/', '', $_SERVER['HTTP_HOST'] ?? '');
+$isLocalHost = in_array($host, ['localhost', '127.0.0.1', '::1'], true);
+$installed = file_exists($root . '/storage/installed.lock') || ($isLocalHost && file_exists($root . '/config/database.php'));
 $errors = [];
 $success = false;
 
@@ -31,6 +33,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$installed) {
 
     if (!$errors) {
         try {
+            $configFile = $root . '/config/database.php';
+            $configDirectory = dirname($configFile);
+            $storageDirectory = $root . '/storage';
+            if ((file_exists($configFile) && !is_writable($configFile)) || (!file_exists($configFile) && !is_writable($configDirectory))) {
+                throw new RuntimeException('La carpeta config no tiene permisos de escritura para Apache.');
+            }
+            if (!is_writable($storageDirectory)) {
+                throw new RuntimeException('La carpeta storage no tiene permisos de escritura para Apache.');
+            }
+            $configContent = "<?php\ndeclare(strict_types=1);\n\nreturn " . var_export($data, true) . ";\n";
+            if (@file_put_contents($configFile, $configContent, LOCK_EX) === false) {
+                throw new RuntimeException('No se pudo escribir config/database.php. Revisa los permisos de la carpeta config.');
+            }
+
             $pdo = new PDO(
                 sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $data['host'], $data['port'], $data['database']),
                 $data['username'],
@@ -41,17 +57,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$installed) {
             if ($schema === false) throw new RuntimeException('No se encontró database/schema.sql');
             $pdo->exec($schema);
             $pdo->beginTransaction();
-            $stmt = $pdo->prepare('INSERT INTO communes (name,region,status) VALUES (?,?,\'activa\')');
+            $stmt = $pdo->prepare("INSERT INTO communes (name,region,status) VALUES (?,?,'activa') ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id), status='activa'");
             $stmt->execute([$communeName, $regionName]);
             $communeId = (int) $pdo->lastInsertId();
-            $stmt = $pdo->prepare("INSERT INTO users (role_id,commune_id,name,email,password,status,email_verified_at) VALUES (1,?,?,?,?, 'activo', NOW())");
+            $stmt = $pdo->prepare("INSERT INTO users (role_id,commune_id,name,email,password,status,email_verified_at) VALUES (1,?,?,?,?,'activo',NOW()) ON DUPLICATE KEY UPDATE role_id=1, commune_id=VALUES(commune_id), name=VALUES(name), password=VALUES(password), status='activo', email_verified_at=NOW()");
             $stmt->execute([$communeId, $adminName, $adminEmail, password_hash($adminPassword, PASSWORD_DEFAULT)]);
             $pdo->commit();
-
-            $configContent = "<?php\ndeclare(strict_types=1);\n\nreturn " . var_export($data, true) . ";\n";
-            if (file_put_contents($root . '/config/database.php', $configContent, LOCK_EX) === false) {
-                throw new RuntimeException('No se pudo escribir config/database.php. Revisa los permisos de la carpeta config.');
-            }
 
             $appFile = $root . '/config/app.php';
             $appContent = file_get_contents($appFile);
@@ -59,7 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$installed) {
                 $appContent = preg_replace("/'base_url'\s*=>\s*'[^']*'/", "'base_url' => '" . addslashes($baseUrl) . "'", $appContent, 1);
                 file_put_contents($appFile, $appContent, LOCK_EX);
             }
-            file_put_contents($root . '/storage/installed.lock', date(DATE_ATOM) . PHP_EOL, LOCK_EX);
+            if (@file_put_contents($root . '/storage/installed.lock', date(DATE_ATOM) . PHP_EOL, LOCK_EX) === false) {
+                throw new RuntimeException('No se pudo crear storage/installed.lock. Revisa los permisos de storage.');
+            }
             $success = true;
         } catch (Throwable $exception) {
             if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
@@ -94,4 +107,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$installed) {
 <div class="col-12"><label class="form-label">Contraseña</label><input type="password" minlength="10" class="form-control" name="admin_password" required><div class="form-text">Mínimo 10 caracteres.</div></div></div>
 <button class="btn btn-primary w-100 mt-4 py-2" type="submit">Instalar plataforma</button>
 </div></form><?php endif; ?></div></main></body></html>
-
