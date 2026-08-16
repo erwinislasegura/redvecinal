@@ -13,8 +13,10 @@ final class PetController extends Controller
     public function index(): void
     {
         $user=Auth::user();
-        $sql=Auth::can('reports.commune')?'SELECT p.*,u.name AS owner_name,u.phone AS owner_phone FROM pets p JOIN users u ON u.id=p.user_id WHERE p.commune_id=? ORDER BY FIELD(p.status,\'perdida\',\'encontrada\',\'en_casa\'),p.updated_at DESC':'SELECT p.*,u.name AS owner_name,u.phone AS owner_phone FROM pets p JOIN users u ON u.id=p.user_id WHERE p.user_id=? ORDER BY p.updated_at DESC';
-        $pets=Database::query($sql,[Auth::can('reports.commune')?$user['commune_id']:$user['id']])->fetchAll();
+        if($user['role_slug']==='superadmin'){$sql='SELECT p.*,u.name AS owner_name,u.phone AS owner_phone FROM pets p JOIN users u ON u.id=p.user_id ORDER BY FIELD(p.status,\'perdida\',\'encontrada\',\'en_casa\'),p.updated_at DESC';$params=[];}
+        elseif(Auth::can('reports.commune')){$sql='SELECT p.*,u.name AS owner_name,u.phone AS owner_phone FROM pets p JOIN users u ON u.id=p.user_id WHERE p.commune_id=? ORDER BY FIELD(p.status,\'perdida\',\'encontrada\',\'en_casa\'),p.updated_at DESC';$params=[$user['commune_id']];}
+        else{$sql='SELECT p.*,u.name AS owner_name,u.phone AS owner_phone FROM pets p JOIN users u ON u.id=p.user_id WHERE p.user_id=? ORDER BY p.updated_at DESC';$params=[$user['id']];}
+        $pets=Database::query($sql,$params)->fetchAll();
         $this->view('pets/index',['title'=>'Mascotas','pets'=>$pets]);
     }
 
@@ -22,16 +24,18 @@ final class PetController extends Controller
     {
         $this->validateCsrf(); $user=Auth::user(); $name=trim($_POST['name']??''); $species=trim($_POST['species']??'');
         if(!$name||!$species)$this->redirect('mascotas','Completa el nombre y la especie.','danger');
-        $token=$this->uuid();
-        Database::query('INSERT INTO pets (user_id,commune_id,name,species,breed,color,description,qr_token,status,last_seen_address,lost_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[$user['id'],$user['commune_id'],$name,$species,trim($_POST['breed']??''),trim($_POST['color']??''),trim($_POST['description']??''),$token,$_POST['status']??'en_casa',trim($_POST['last_seen_address']??''),!empty($_POST['lost_at'])?str_replace('T',' ',$_POST['lost_at']):null]);
-        $id=(int)Database::connection()->lastInsertId();Audit::log('mascota.creada','pet',$id,null,['name'=>$name,'species'=>$species,'status'=>$_POST['status']??'en_casa']);
-        $this->redirect('mascotas','Mascota registrada. Su enlace QR ya está disponible.');
+        $token=$this->uuid();$status=in_array($_POST['status']??'',['en_casa','perdida','encontrada'],true)?$_POST['status']:'en_casa';
+        Database::query('INSERT INTO pets (user_id,commune_id,name,species,breed,color,description,qr_token,status,last_seen_address,lost_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)',[$user['id'],$user['commune_id'],$name,$species,trim($_POST['breed']??''),trim($_POST['color']??''),trim($_POST['description']??''),$token,$status,trim($_POST['last_seen_address']??''),!empty($_POST['lost_at'])?str_replace('T',' ',$_POST['lost_at']):($status==='perdida'?date('Y-m-d H:i:s'):null)]);
+        $id=(int)Database::connection()->lastInsertId();Audit::log('mascota.creada','pet',$id,null,['name'=>$name,'species'=>$species,'status'=>$status]);
+        $_SESSION['_flash']['message']='Mascota registrada. Su credencial QR está lista para imprimir.';$_SESSION['_flash']['type']='success';
+        header('Location: '.url('mascotas/'.$id.'/credencial'));exit;
     }
 
     public function status(string $id): void
     {
         $this->validateCsrf();$user=Auth::user();$pet=Database::query('SELECT * FROM pets WHERE id=?',[$id])->fetch();
-        if(!$pet||((int)$pet['user_id']!==(int)$user['id']&&!Auth::can('reports.commune')))$this->redirect('mascotas','Mascota no encontrada.','danger');
+        $canManage=$pet&&((int)$pet['user_id']===(int)$user['id']||$user['role_slug']==='superadmin'||(Auth::can('reports.commune')&&(int)$pet['commune_id']===(int)$user['commune_id']));
+        if(!$canManage)$this->redirect('mascotas','Mascota no encontrada.','danger');
         $status=$_POST['status']??'';if(!in_array($status,['en_casa','perdida','encontrada'],true))$this->redirect('mascotas','Estado inválido.','danger');
         Database::query('UPDATE pets SET status=?,last_seen_address=?,lost_at=IF(?=\'perdida\',COALESCE(lost_at,NOW()),lost_at) WHERE id=?',[$status,trim($_POST['last_seen_address']??$pet['last_seen_address']),$status,$id]);
         Audit::log('mascota.estado_actualizado','pet',$id,['status'=>$pet['status']],['status'=>$status]);
@@ -44,6 +48,17 @@ final class PetController extends Controller
         if(!$pet){http_response_code(404);require BASE_PATH.'/app/Views/errors/404.php';return;}
         $sightings=Database::query('SELECT * FROM pet_sightings WHERE pet_id=? ORDER BY created_at DESC LIMIT 10',[$pet['id']])->fetchAll();
         $this->view('pets/public',['title'=>$pet['name'],'pet'=>$pet,'sightings'=>$sightings,'publicPage'=>true]);
+    }
+
+    public function credential(string $id): void
+    {
+        $user=Auth::user();
+        $pet=Database::query('SELECT p.*,u.name AS owner_name,u.phone AS owner_phone,u.address AS owner_address,c.name AS commune_name FROM pets p JOIN users u ON u.id=p.user_id JOIN communes c ON c.id=p.commune_id WHERE p.id=?',[$id])->fetch();
+        $canView=$pet&&((int)$pet['user_id']===(int)$user['id']||$user['role_slug']==='superadmin'||(Auth::can('reports.commune')&&(int)$pet['commune_id']===(int)$user['commune_id']));
+        if(!$canView){http_response_code(404);require BASE_PATH.'/app/Views/errors/404.php';return;}
+        $profileUrl=url('mascota/qr/'.$pet['qr_token']);
+        $backUrl=Auth::can('reports.commune')?url('mascotas'):url('vecinos/?page=mascotas');
+        require BASE_PATH.'/app/Views/pets/credential.php';
     }
 
     public function sighting(string $token): void

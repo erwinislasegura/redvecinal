@@ -42,7 +42,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $name=trim($_POST['name']??'');$species=trim($_POST['species']??'');if(!$name||!$species)$redirect('mascotas','Completa el nombre y tipo de mascota.');
         $token=sprintf('%s-%s-%s-%s-%s',bin2hex(random_bytes(4)),bin2hex(random_bytes(2)),bin2hex(random_bytes(2)),bin2hex(random_bytes(2)),bin2hex(random_bytes(6)));
         Database::query("INSERT INTO pets (user_id,commune_id,name,species,breed,color,description,qr_token,last_seen_address,status,lost_at) VALUES (?,?,?,?,?,?,?,?,?,? ,IF(?='perdida',NOW(),NULL))",[$user['id'],$user['commune_id'],$name,$species,trim($_POST['breed']??''),trim($_POST['color']??''),trim($_POST['description']??''),$token,trim($_POST['last_seen_address']??''),in_array($_POST['status']??'', ['en_casa','perdida','encontrada'],true)?$_POST['status']:'en_casa',$_POST['status']??'']);
-        Audit::log('app_vecinos.mascota_creada','pet',(int)Database::connection()->lastInsertId(),null,['name'=>$name]);$redirect('mascotas','Mascota registrada.');
+        $petId=(int)Database::connection()->lastInsertId();Audit::log('app_vecinos.mascota_creada','pet',$petId,null,['name'=>$name]);
+        $_SESSION['neighbor_flash']='Mascota registrada. Su credencial QR ya está lista para imprimir.';header('Location: '.url('mascotas/'.$petId.'/credencial'));exit;
+    }
+    if($action==='pet_status'){
+        $petId=(int)($_POST['pet_id']??0);$status=$_POST['status']??'';
+        $pet=Database::query('SELECT id,status FROM pets WHERE id=? AND user_id=?',[$petId,$user['id']])->fetch();
+        if(!$pet||!in_array($status,['en_casa','perdida','encontrada'],true))$redirect('mascotas','No fue posible actualizar la mascota.');
+        Database::query("UPDATE pets SET status=?,last_seen_address=?,lost_at=IF(?='perdida',COALESCE(lost_at,NOW()),lost_at) WHERE id=?",[$status,trim($_POST['last_seen_address']??''),$status,$petId]);
+        Audit::log('app_vecinos.mascota_estado','pet',$petId,['status'=>$pet['status']],['status'=>$status]);$redirect('mascotas','Estado de la mascota actualizado.');
     }
     if($action==='device'){
         $name=trim($_POST['name']??'');$type=$_POST['type']??'otro';if(!$name||!in_array($type,['camara','alarma','sensor','boton_panico','otro'],true))$redirect('seguridad','Completa los datos del dispositivo.');

@@ -39,6 +39,7 @@ $router->post('/despachos/{id}/estado', [DispatchController::class, 'status'], [
 $router->get('/mascotas', [PetController::class, 'index'], ['auth']);
 $router->post('/mascotas', [PetController::class, 'store'], ['permission:pets.manage']);
 $router->post('/mascotas/{id}/estado', [PetController::class, 'status'], ['permission:pets.manage']);
+$router->get('/mascotas/{id}/credencial', [PetController::class, 'credential'], ['auth']);
 $router->get('/mascota/qr/{token}', [PetController::class, 'publicProfile']);
 $router->post('/mascota/qr/{token}/avistamiento', [PetController::class, 'sighting']);
 
