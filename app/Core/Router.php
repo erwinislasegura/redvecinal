@@ -25,7 +25,7 @@ final class Router
     public function dispatch(string $method, string $uri): void
     {
         $path = $this->normalize(parse_url($uri, PHP_URL_PATH) ?: '/');
-        $basePath = trim((string) parse_url((string) config('base_url', ''), PHP_URL_PATH), '/');
+        $basePath = trim((string) parse_url(url(), PHP_URL_PATH), '/');
         if ($basePath && str_starts_with(trim($path, '/'), $basePath)) {
             $path = $this->normalize(substr(trim($path, '/'), strlen($basePath)));
         }
@@ -70,4 +70,3 @@ final class Router
         return $path === '//' ? '/' : $path;
     }
 }
-
