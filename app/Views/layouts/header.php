@@ -45,6 +45,7 @@ $unreadNotifications = $currentUser
         <div class="nav-label">Operación</div>
         <a class="<?= active('panel') ?>" href="<?= url('panel') ?>"><?= svg_icon('dashboard') ?><span>Resumen general</span></a>
         <a class="<?= active('reportes') ?>" href="<?= url('reportes') ?>"><?= svg_icon('alert') ?><span>Reportes</span><i class="nav-indicator"></i></a>
+        <?php if (can('dispatch.manage')): ?><a class="<?= active('despachos') ?>" href="<?= url('despachos') ?>"><?= svg_icon('truck') ?><span>Despacho de servicios</span></a><?php endif; ?>
         <a class="<?= active('mascotas') ?>" href="<?= url('mascotas') ?>"><?= svg_icon('paw') ?><span>Mascotas</span></a>
         <a class="<?= active('dispositivos') ?>" href="<?= url('dispositivos') ?>"><?= svg_icon('device') ?><span>Dispositivos</span></a>
       </div>
