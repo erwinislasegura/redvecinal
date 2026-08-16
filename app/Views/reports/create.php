@@ -19,7 +19,7 @@
         <div class="col-md-6 d-flex align-items-end"><button type="button" class="btn btn-outline-primary w-100" data-geolocate>◎ Usar mi ubicación actual</button></div>
         <input type="hidden" name="latitude"><input type="hidden" name="longitude">
         <div class="col-12"><label class="form-label">Foto o video de evidencia</label><input type="file" class="form-control" name="evidence" accept="image/jpeg,image/png,image/webp,video/mp4"><div class="form-text">Opcional. JPG, PNG, WEBP o MP4, máximo <?= (int)config('uploads_max_mb',8) ?> MB. Los archivos no se guardan en el modo sin conexión.</div></div>
-        <div class="col-12"><label class="form-check"><input type="checkbox" class="form-check-input" name="is_anonymous" value="1"><span>Ocultar mi identidad frente a otros vecinos</span></label></div>
+        <?php if($allowAnonymous): ?><div class="col-12"><label class="form-check"><input type="checkbox" class="form-check-input" name="is_anonymous" value="1"><span>Ocultar mi identidad frente a otros vecinos</span></label></div><?php endif; ?>
       </div>
     </div>
     <div class="card-footer"><span class="offline-note">También puedes enviar este formulario sin conexión; quedará en espera.</span><button class="btn btn-danger btn-lg">Enviar reporte</button></div>
