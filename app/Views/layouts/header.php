@@ -14,13 +14,19 @@ $unreadNotifications = $currentUser
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#123f37">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="RedVecinal">
   <meta name="csrf-token" content="<?= e(\App\Core\Csrf::token()) ?>">
   <title><?= e($title ?? 'RedVecinal') ?> | RedVecinal</title>
   <link rel="manifest" href="<?= url('public/manifest.json') ?>">
+  <link rel="apple-touch-icon" href="<?= asset('img/icon-192.png') ?>">
   <link rel="stylesheet" href="<?= asset('css/bootstrap.min.css') ?>">
   <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
   <link rel="stylesheet" href="<?= asset('css/admin.css') ?>">
   <link rel="stylesheet" href="<?= asset('css/admin-modules.css') ?>">
+  <?php if(!empty($useMap)): ?><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"><?php endif; ?>
 </head>
 <body class="<?= !empty($publicPage) ? 'public-body' : 'app-body' ?>">
 <?php if (!$isLocalView): ?><div id="offlineBanner" class="offline-banner" hidden><?= svg_icon('alert') ?> Sin conexión: los reportes nuevos se guardarán para enviarse después.</div><?php endif; ?>
@@ -44,6 +50,7 @@ $unreadNotifications = $currentUser
       <div class="nav-group">
         <div class="nav-label">Operación</div>
         <a class="<?= active('panel') ?>" href="<?= url('panel') ?>"><?= svg_icon('dashboard') ?><span>Resumen general</span></a>
+        <?php if(can('reports.create')): ?><a class="<?= active('mi-app') ?>" href="<?= url('mi-app') ?>"><?= svg_icon('phone') ?><span>App para vecinos</span></a><?php endif; ?>
         <a class="<?= active('reportes') ?>" href="<?= url('reportes') ?>"><?= svg_icon('alert') ?><span>Reportes</span><i class="nav-indicator"></i></a>
         <?php if (can('dispatch.manage')): ?><a class="<?= active('despachos') ?>" href="<?= url('despachos') ?>"><?= svg_icon('truck') ?><span>Despacho de servicios</span></a><?php endif; ?>
         <a class="<?= active('mascotas') ?>" href="<?= url('mascotas') ?>"><?= svg_icon('paw') ?><span>Mascotas</span></a>
