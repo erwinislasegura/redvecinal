@@ -90,7 +90,7 @@ $unreadNotifications = $currentUser
     </header>
     <main class="content">
 <?php else: ?>
-  <header class="public-nav"><div class="container nav-inner"><a class="brand brand-dark" href="<?= url() ?>"><span class="brand-symbol">RV</span><span>RedVecinal</span></a><nav><a href="<?= url('ingresar') ?>">Ingresar</a><a class="btn btn-primary btn-sm" href="<?= url('registro') ?>">Crear cuenta</a></nav></div></header>
+  <header class="public-nav"><div class="container nav-inner"><a class="brand brand-dark" href="<?= url() ?>"><span class="brand-symbol">RV</span><span>RedVecinal</span></a><nav><a class="download-neighbor-link" href="<?= url('vecinos') ?>"><?= svg_icon('phone') ?> Descargar vecinos</a><a class="public-login-link" href="<?= url('ingresar') ?>">Ingresar</a><a class="btn btn-primary btn-sm" href="<?= url('vecinos#registro') ?>">Crear cuenta</a></nav></div></header>
   <main>
 <?php endif; ?>
 
