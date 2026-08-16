@@ -50,7 +50,6 @@ $unreadNotifications = $currentUser
       <div class="nav-group">
         <div class="nav-label">Operación</div>
         <a class="<?= active('panel') ?>" href="<?= url('panel') ?>"><?= svg_icon('dashboard') ?><span>Resumen general</span></a>
-        <?php if(can('reports.create')): ?><a class="<?= active('mi-app') ?>" href="<?= url('mi-app') ?>"><?= svg_icon('phone') ?><span>App para vecinos</span></a><?php endif; ?>
         <a class="<?= active('reportes') ?>" href="<?= url('reportes') ?>"><?= svg_icon('alert') ?><span>Reportes</span><i class="nav-indicator"></i></a>
         <?php if (can('dispatch.manage')): ?><a class="<?= active('despachos') ?>" href="<?= url('despachos') ?>"><?= svg_icon('truck') ?><span>Despacho de servicios</span></a><?php endif; ?>
         <a class="<?= active('mascotas') ?>" href="<?= url('mascotas') ?>"><?= svg_icon('paw') ?><span>Mascotas</span></a>
@@ -90,7 +89,7 @@ $unreadNotifications = $currentUser
     </header>
     <main class="content">
 <?php else: ?>
-  <header class="public-nav"><div class="container nav-inner"><a class="brand brand-dark" href="<?= url() ?>"><span class="brand-symbol">RV</span><span>RedVecinal</span></a><nav><a class="download-neighbor-link" href="<?= url('vecinos') ?>"><?= svg_icon('phone') ?> Descargar vecinos</a><a class="public-login-link" href="<?= url('ingresar') ?>">Ingresar</a><a class="btn btn-primary btn-sm" href="<?= url('vecinos#registro') ?>">Crear cuenta</a></nav></div></header>
+  <header class="public-nav"><div class="container nav-inner"><a class="brand brand-dark" href="<?= url() ?>"><span class="brand-symbol">RV</span><span>RedVecinal</span></a><nav><a class="download-neighbor-link" href="<?= url('descargar-vecinos') ?>"><?= svg_icon('phone') ?> Descargar vecinos</a><a class="public-login-link" href="<?= url('ingresar?next=vecinos') ?>">Ingresar</a><a class="btn btn-primary btn-sm" href="<?= url('descargar-vecinos#registro') ?>">Crear cuenta</a></nav></div></header>
   <main>
 <?php endif; ?>
 
