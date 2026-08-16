@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
 
@@ -23,6 +24,7 @@ final class DeviceController extends Controller
         if(!$name||!in_array($type,['camara','alarma','sensor','boton_panico','otro'],true))$this->redirect('dispositivos','Completa los datos del dispositivo.','danger');
         $protocol=$_POST['protocol']??'manual';if(!in_array($protocol,['manual','rtsp','onvif','http','mqtt'],true))$protocol='manual';
         Database::query('INSERT INTO devices (user_id,commune_id,name,type,location,protocol,connection_url,webhook_token,status) VALUES (?,?,?,?,?,?,?,?,\'activo\')',[$user['id'],$user['commune_id'],$name,$type,trim($_POST['location']??''),$protocol,trim($_POST['connection_url']??''),bin2hex(random_bytes(32))]);
+        $id=(int)Database::connection()->lastInsertId();Audit::log('dispositivo.creado','device',$id,null,['name'=>$name,'type'=>$type,'protocol'=>$protocol]);
         $this->redirect('dispositivos','Dispositivo registrado.');
     }
 
@@ -33,6 +35,7 @@ final class DeviceController extends Controller
         $severity=$_POST['severity']??'info';if(!in_array($severity,['info','advertencia','critica'],true))$severity='info';
         Database::query('INSERT INTO device_events (device_id,event_type,payload_json,severity) VALUES (?,?,?,?)',[$id,trim($_POST['event_type']??'Alerta manual'),json_encode(['notes'=>trim($_POST['notes']??'')],JSON_UNESCAPED_UNICODE),$severity]);
         Database::query('UPDATE devices SET last_seen_at=NOW(),status=\'activo\' WHERE id=?',[$id]);
+        Audit::log('dispositivo.evento_manual','device',$id,null,['severity'=>$severity,'event_type'=>trim($_POST['event_type']??'Alerta manual')]);
         $this->redirect('dispositivos','Evento registrado.');
     }
 
@@ -46,7 +49,8 @@ final class DeviceController extends Controller
         if(!in_array($severity,['info','advertencia','critica'],true))$severity='advertencia';
         Database::query('INSERT INTO device_events (device_id,event_type,payload_json,severity) VALUES (?,?,?,?)',[$device['id'],$event,json_encode($payload,JSON_UNESCAPED_UNICODE),$severity]);
         Database::query('UPDATE devices SET last_seen_at=NOW(),status=\'activo\' WHERE id=?',[$device['id']]);
-        if($severity==='critica')Database::query('INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,\'device_alert\',?,?,?)',[$device['user_id'],'Alerta crítica: '.$device['name'],$event,url('dispositivos')]);
+        Audit::log('dispositivo.evento_webhook','device',$device['id'],null,['event_type'=>$event,'severity'=>$severity]);
+        if($severity==='critica'&&setting('device_alerts_enabled','1',(int)$device['commune_id'])==='1')Database::query('INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,\'device_alert\',?,?,?)',[$device['user_id'],'Alerta crítica: '.$device['name'],$event,url('dispositivos')]);
         $this->json(['ok'=>true],201);
     }
 }
