@@ -8,6 +8,7 @@ use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
 use App\Core\PanicAlert;
+use App\Core\PanicTracking;
 use App\Models\Report;
 
 final class CitizenController extends Controller
@@ -93,6 +94,7 @@ final class CitizenController extends Controller
         $description='Botón de pánico activado desde la aplicación vecinal. '.($hasGps?'Ubicación GPS capturada desde el dispositivo'.($accuracy!==null?' con precisión aproximada de ±'.$accuracy.' m':'').($capturedAt!==''?' a las '.$capturedAt:'').'.':'El dispositivo no permitió obtener ubicación GPS.').($note!==''?' Detalle: '.$note:'');
         $address=$hasGps?'Ubicación GPS: '.number_format($latitude,7,'.','').', '.number_format($longitude,7,'.',''):('GPS no disponible · '.($user['address']??'domicilio no informado'));
         $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>$description,'address'=>$address,'latitude'=>$latitude,'longitude'=>$longitude,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
+        try{PanicTracking::start($id,(int)$user['id'],$latitude,$longitude,$accuracy!==null?(float)$accuracy:null);}catch(\Throwable $error){error_log('RedVecinal seguimiento pánico: '.$error->getMessage());}
         PanicAlert::notify($user,$id);
         Audit::log('panico.activado','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude,'accuracy'=>$accuracy,'captured_at'=>$capturedAt]);
         $this->panicResponse(true,$id,$hasGps?'La alerta y ubicación GPS fueron enviadas a la central.':'La alerta fue enviada, pero el teléfono no entregó la ubicación GPS.');

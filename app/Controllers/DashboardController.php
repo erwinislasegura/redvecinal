@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
+use App\Core\PanicTracking;
 use App\Models\Report;
 
 final class DashboardController extends Controller
@@ -92,5 +93,18 @@ final class DashboardController extends Controller
         Database::query('UPDATE notifications SET read_at=NOW() WHERE id=? AND user_id=?', [$notificationId, (int) $user['id']]);
         Audit::log('panico.alerta_confirmada', 'notification', $notificationId, null, ['action_url' => $notification['action_url']]);
         $this->json(['ok' => true, 'message' => 'Recepción confirmada.']);
+    }
+
+    public function panicTracking(): void
+    {
+        try{$trackings=PanicTracking::liveFor(Auth::user());}catch(\Throwable $error){error_log('RedVecinal mapa seguimiento pánico: '.$error->getMessage());$this->json(['ok'=>false,'trackings'=>[],'message'=>'Seguimiento GPS no disponible.'],503);}
+        $items=array_map(static function(array $item):array{return [
+            'tracking_id'=>(int)$item['tracking_id'],'report_id'=>(int)$item['report_id'],'code'=>$item['public_code'],'title'=>$item['title'],
+            'reporter'=>$item['reporter_name'],'phone'=>$item['reporter_phone'],'commune'=>$item['commune_name'],'address'=>$item['address'],
+            'latitude'=>is_numeric($item['last_latitude'])?(float)$item['last_latitude']:null,'longitude'=>is_numeric($item['last_longitude'])?(float)$item['last_longitude']:null,
+            'accuracy'=>is_numeric($item['last_accuracy'])?(float)$item['last_accuracy']:null,'started_at'=>$item['started_at'],'last_seen_at'=>$item['last_seen_at'],
+            'url'=>url('reportes/'.$item['report_id']),'trail'=>$item['trail'],
+        ];},$trackings);
+        $this->json(['ok'=>true,'trackings'=>$items,'server_time'=>date(DATE_ATOM)]);
     }
 }

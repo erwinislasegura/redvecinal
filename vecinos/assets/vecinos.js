@@ -48,6 +48,33 @@
     saveReportQueue(remaining);
   }
 
+  const activeTrackingKey = 'neighbor_active_panic_tracking';
+  const pendingTrackingKey = 'neighbor_pending_panic_location';
+  const livePanel = document.querySelector('[data-live-tracking]');
+  const liveStatus = document.querySelector('[data-live-tracking-status]');
+  let liveWatchId = null; let lastLocationSentAt = 0; let sendingLocation = false;
+  const setLivePanel = (visible, text = '') => { if (livePanel) livePanel.hidden = !visible; if (liveStatus && text) liveStatus.textContent = text; };
+  const clearLiveTracking = () => { if (liveWatchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(liveWatchId); liveWatchId = null; localStorage.removeItem(activeTrackingKey); localStorage.removeItem(pendingTrackingKey); setLivePanel(false); };
+  const postLiveLocation = async (payload) => {
+    if (!navigator.onLine) { localStorage.setItem(pendingTrackingKey, JSON.stringify(payload)); setLivePanel(true, 'Sin conexión: conservando la última posición…'); return; }
+    if (sendingLocation) return; sendingLocation = true;
+    try {
+      const response = await fetch('?action=panic_location', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': cfg.csrf}, body: JSON.stringify(payload)});
+      if (response.status === 404 || response.status === 410) { clearLiveTracking(); return; }
+      if (!response.ok) throw new Error('No fue posible actualizar'); localStorage.removeItem(pendingTrackingKey);
+      const accuracy = Math.round(Number(payload.accuracy || 0)); setLivePanel(true, `Actualizada ${new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}${accuracy ? ` · precisión ±${accuracy} m` : ''}`);
+    } catch (error) { localStorage.setItem(pendingTrackingKey, JSON.stringify(payload)); setLivePanel(true, 'Reconectando el seguimiento…'); }
+    finally { sendingLocation = false; }
+  };
+  const startLiveTracking = (reportId) => {
+    if (!reportId || !navigator.geolocation) return; localStorage.setItem(activeTrackingKey, String(reportId)); setLivePanel(true, 'Esperando nueva posición GPS…');
+    if (liveWatchId !== null) navigator.geolocation.clearWatch(liveWatchId);
+    liveWatchId = navigator.geolocation.watchPosition((position) => {
+      const now = Date.now(); if (now - lastLocationSentAt < 5000) return; lastLocationSentAt = now;
+      postLiveLocation({report_id:Number(reportId),latitude:position.coords.latitude,longitude:position.coords.longitude,accuracy:position.coords.accuracy,captured_at:new Date(position.timestamp).toISOString()});
+    }, (error) => setLivePanel(true, `Seguimiento activo · ${error.message || 'esperando señal GPS'}`), {enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+  };
+
   const panic = document.querySelector('[data-neighbor-panic]');
   if (panic) {
     let timer = null; let sent = false; const message = document.querySelector('[data-panic-message]');
@@ -62,7 +89,7 @@
         }
         try {
           const response = await fetch('?action=panic', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': cfg.csrf}, body: JSON.stringify(payload)});
-          const data = await response.json(); message.textContent = data.message || 'Alerta enviada.'; panic.textContent = data.location_shared ? 'ALERTA + GPS ENVIADOS' : 'ALERTA ENVIADA';
+          const data = await response.json(); message.textContent = data.message || 'Alerta enviada.'; panic.textContent = data.location_shared ? 'ALERTA + GPS ENVIADOS' : 'ALERTA ENVIADA'; if(data.ok&&data.tracking_active)startLiveTracking(data.id);
         } catch (error) { message.textContent = 'No se pudo enviar. Llama al 133, 132 o 131.'; }
       };
       if (navigator.geolocation) navigator.geolocation.getCurrentPosition((position)=>finish(position), (error) => finish(null,error.message||'Permiso de ubicación denegado'), {enableHighAccuracy: true, timeout: 12000, maximumAge: 0}); else finish(null,'Geolocalización no disponible');
@@ -78,14 +105,17 @@
     for (const item of queue) {
       try {
         const response = await fetch('?action=panic', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-CSRF-TOKEN': cfg.csrf}, body: JSON.stringify(item)});
-        if (!response.ok) pending.push(item);
+        if (!response.ok) pending.push(item); else { const data=await response.json(); if(data.ok&&data.tracking_active)startLiveTracking(data.id); }
       } catch (error) { pending.push(item); }
     }
     localStorage.setItem('neighbor_panic_queue', JSON.stringify(pending));
   }
 
   const syncAll = () => { syncReports(); syncPanics(); };
-  window.addEventListener('online', syncAll); syncAll();
+  window.addEventListener('online', () => { syncAll(); const pendingLocation=localStorage.getItem(pendingTrackingKey); if(pendingLocation)try{postLiveLocation(JSON.parse(pendingLocation));}catch(error){} }); syncAll();
+  const stopTrackingButton=document.querySelector('[data-stop-live-tracking]');
+  if(stopTrackingButton)stopTrackingButton.addEventListener('click',async()=>{const reportId=Number(localStorage.getItem(activeTrackingKey)||0);stopTrackingButton.disabled=true;try{if(reportId)await fetch('?action=panic_stop',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':cfg.csrf},body:JSON.stringify({report_id:reportId})});}catch(error){}clearLiveTracking();stopTrackingButton.disabled=false;});
+  const existingTracking=Number(localStorage.getItem(activeTrackingKey)||0);if(existingTracking)startLiveTracking(existingTracking);
   const trackingCards = document.querySelectorAll('[data-report-track]');
   if (trackingCards.length) {
     const updateTracking = async () => {

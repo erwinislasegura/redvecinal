@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
+use App\Core\PanicTracking;
 use App\Models\Report;
 
 final class ReportController extends Controller
@@ -88,6 +89,7 @@ final class ReportController extends Controller
         $status=$_POST['status']??''; $allowed=['nuevo','validando','asignado','en_proceso','resuelto','cerrado','rechazado']; if(!in_array($status,$allowed,true))$this->redirect('reportes/'.$id,'Estado inválido.','danger');
         $assigned=(int)($_POST['assigned_to']??0)?:null;
         Database::query('UPDATE reports SET status=?,assigned_to=?,resolved_at=IF(? IN (\'resuelto\',\'cerrado\'),NOW(),NULL) WHERE id=?',[$status,$assigned,$status,$id]);
+        if(in_array($status,['resuelto','cerrado','rechazado'],true))try{PanicTracking::stop((int)$id,null,'finalizado');}catch(\Throwable $error){error_log('RedVecinal cierre seguimiento pánico: '.$error->getMessage());}
         Database::query('INSERT INTO report_status_history (report_id,user_id,old_status,new_status,notes) VALUES (?,?,?,?,?)',[$id,Auth::user()['id'],$report['status'],$status,trim($_POST['notes']??'')]);
         $assignedName=$assigned?(string)Database::query('SELECT name FROM users WHERE id=?',[$assigned])->fetchColumn():'';
         Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'report_update','Actualización de tu reporte',?,?)",[$report['user_id'],'Estado: '.str_replace('_',' ',$status).($assignedName!==''?' · Asignado a '.$assignedName:''),url('vecinos/').'?page=reportes']);

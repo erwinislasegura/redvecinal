@@ -174,11 +174,12 @@
   window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); installPrompt=event; if(installButton)installButton.hidden=false; });
   if (installButton) installButton.addEventListener('click', async () => { if(!installPrompt)return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt=null; installButton.hidden=true; });
 
+  let dashboardMap=null;
   const mapElement=document.getElementById('communeMap');
   const mapPayload=document.getElementById('dashboardMapData');
   if(mapElement&&mapPayload&&window.L){
     try{
-      const data=JSON.parse(mapPayload.textContent); const map=L.map(mapElement,{zoomControl:true}).setView([data.config.lat,data.config.lng],data.config.zoom||13);
+      const data=JSON.parse(mapPayload.textContent); const map=L.map(mapElement,{zoomControl:true}).setView([data.config.lat,data.config.lng],data.config.zoom||13);dashboardMap=map;
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
       const escapeHtml=(value)=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
       const markers=data.reports.map(report=>{
@@ -189,6 +190,30 @@
       setTimeout(()=>map.invalidateSize(),100);
     }catch(error){mapElement.innerHTML='<div class="map-unavailable">No fue posible cargar el mapa.</div>';}
   } else if(mapElement) { mapElement.innerHTML='<div class="map-unavailable">El mapa requiere conexión la primera vez que se abre.</div>'; }
+
+  if(dashboardMap&&window.L){
+    const liveLayers=new Map();const liveCount=document.querySelector('[data-live-panic-count]');let centeredTrackingId=0;
+    const liveEscape=(value)=>String(value??'').replace(/[&<>'"]/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#039;','"':'&quot;'}[char]));
+    const refreshLiveTracking=async()=>{
+      try{
+        const response=await fetch(base+'/api/seguimiento-panico',{headers:{Accept:'application/json'},credentials:'same-origin',cache:'no-store'});if(!response.ok)return;
+        const data=await response.json();const visibleIds=new Set();let located=0;
+        (data.trackings||[]).forEach(item=>{
+          if(!Number.isFinite(item.latitude)||!Number.isFinite(item.longitude))return;located++;visibleIds.add(item.tracking_id);const latlng=[item.latitude,item.longitude];
+          const lastSeen=item.last_seen_at?new Date(String(item.last_seen_at).replace(' ','T')).getTime():0;const stale=lastSeen&&Date.now()-lastSeen>30000;
+          let layer=liveLayers.get(item.tracking_id);const popup=`<div class="map-popup live-popup"><small>🚨 ${liveEscape(item.code)} · SEGUIMIENTO EN VIVO</small><strong>${liveEscape(item.reporter)}</strong><span>${liveEscape(item.phone||'Teléfono no informado')}</span><span>Precisión: ${item.accuracy?`±${Math.round(item.accuracy)} m`:'no informada'}${stale?' · señal demorada':''}</span><a href="${liveEscape(item.url)}">Gestionar emergencia</a></div>`;
+          if(!layer){
+            const icon=L.divIcon({className:'live-panic-icon-wrap',html:`<span class="live-panic-marker${stale?' stale':''}"><i></i></span>`,iconSize:[34,34],iconAnchor:[17,17]});
+            const marker=L.marker(latlng,{icon,zIndexOffset:2000}).addTo(dashboardMap).bindPopup(popup);const trail=L.polyline((item.trail||[]).map(point=>[point.lat,point.lng]),{color:'#e0202b',weight:4,opacity:.85}).addTo(dashboardMap);const accuracy=L.circle(latlng,{radius:item.accuracy||0,color:'#e0202b',weight:1,fillColor:'#e0202b',fillOpacity:.08}).addTo(dashboardMap);layer={marker,trail,accuracy};liveLayers.set(item.tracking_id,layer);
+          }else{layer.marker.setLatLng(latlng).setPopupContent(popup);layer.trail.setLatLngs((item.trail||[]).map(point=>[point.lat,point.lng]));layer.accuracy.setLatLng(latlng).setRadius(item.accuracy||0);const markerNode=layer.marker.getElement()?.querySelector('.live-panic-marker');if(markerNode)markerNode.classList.toggle('stale',Boolean(stale));}
+          if(!centeredTrackingId){centeredTrackingId=item.tracking_id;dashboardMap.setView(latlng,Math.max(dashboardMap.getZoom(),16));layer.marker.openPopup();}
+        });
+        liveLayers.forEach((layer,id)=>{if(!visibleIds.has(id)){dashboardMap.removeLayer(layer.marker);dashboardMap.removeLayer(layer.trail);dashboardMap.removeLayer(layer.accuracy);liveLayers.delete(id);if(centeredTrackingId===id)centeredTrackingId=0;}});
+        if(liveCount){liveCount.hidden=located===0;liveCount.textContent=`${located} ${located===1?'seguimiento activo':'seguimientos activos'}`;}
+      }catch(error){}
+    };
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTracking();});refreshLiveTracking();setInterval(refreshLiveTracking,5000);
+  }
 
   const panicAlert=document.getElementById('adminPanicAlert');
   if(panicAlert){

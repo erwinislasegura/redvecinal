@@ -24,7 +24,7 @@
     <div class="map-filters" aria-label="Filtrar marcadores"><button class="active" data-map-filter="all">Todos</button><button data-map-filter="critica">Críticos</button><button data-map-filter="open">Activos</button></div>
   </div>
   <div id="communeMap" class="commune-map" aria-label="Mapa de reportes"></div>
-  <div class="map-footer"><span><i class="map-dot critical"></i> Crítico</span><span><i class="map-dot high"></i> Alta</span><span><i class="map-dot normal"></i> Media o baja</span><b><?= count($mapReports) ?> reportes geolocalizados</b></div>
+  <div class="map-footer"><span><i class="map-dot live"></i> Pánico en vivo</span><span><i class="map-dot critical"></i> Crítico</span><span><i class="map-dot high"></i> Alta</span><span><i class="map-dot normal"></i> Media o baja</span><strong data-live-panic-count hidden>0 seguimientos activos</strong><b><?= count($mapReports) ?> reportes geolocalizados</b></div>
 </section>
 <script type="application/json" id="dashboardMapData"><?= json_encode(['config'=>$mapConfig,'reports'=>$mapReports],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP) ?></script>
 

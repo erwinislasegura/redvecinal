@@ -12,6 +12,7 @@ use App\Core\Audit;
 use App\Core\Csrf;
 use App\Core\Database;
 use App\Core\PanicAlert;
+use App\Core\PanicTracking;
 use App\Models\Report;
 
 if(!Auth::check()){$_SESSION['_flash']['message']='Inicia sesión para abrir la aplicación vecinal.';$_SESSION['_flash']['type']='warning';header('Location: '.url('ingresar?next=vecinos'));exit;}
@@ -54,8 +55,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $capturedAt=mb_substr(trim((string)($input['captured_at']??'')),0,40);$description='Botón de pánico activado desde la aplicación vecinal. '.($hasGps?'Ubicación GPS capturada desde el dispositivo'.($accuracy!==null?' con precisión aproximada de ±'.$accuracy.' m':'').($capturedAt!==''?' a las '.$capturedAt:'').'.':'El dispositivo no permitió obtener ubicación GPS.');
         $address=$hasGps?'Ubicación GPS: '.number_format($latitude,7,'.','').', '.number_format($longitude,7,'.',''):('GPS no disponible · '.($user['address']??'domicilio no informado'));
         $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>$description,'address'=>$address,'latitude'=>$latitude,'longitude'=>$longitude,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
+        $trackingActive=false;try{$trackingActive=PanicTracking::start($id,(int)$user['id'],$latitude,$longitude,$accuracy!==null?(float)$accuracy:null);}catch(\Throwable $error){error_log('RedVecinal seguimiento pánico: '.$error->getMessage());}
         PanicAlert::notify($user,$id);
-        Audit::log('app_vecinos.panico','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude,'accuracy'=>$accuracy,'captured_at'=>$capturedAt]);header('Content-Type: application/json');http_response_code(201);echo json_encode(['ok'=>true,'id'=>$id,'location_shared'=>$hasGps,'message'=>$hasGps?'Alerta y ubicación GPS enviadas a la central.':'Alerta enviada, pero el teléfono no entregó la ubicación GPS.']);exit;
+        Audit::log('app_vecinos.panico','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude,'accuracy'=>$accuracy,'captured_at'=>$capturedAt]);header('Content-Type: application/json');http_response_code(201);echo json_encode(['ok'=>true,'id'=>$id,'location_shared'=>$hasGps,'tracking_active'=>$trackingActive,'message'=>$hasGps?($trackingActive?'Alerta enviada. Tu ubicación se está compartiendo en vivo.':'Alerta y ubicación inicial enviadas; el seguimiento continuo no está disponible.'):'Alerta enviada, pero el teléfono no entregó la ubicación GPS.']);exit;
+    }
+    if($action==='panic_location'){
+        $input=json_decode(file_get_contents('php://input'),true)?:[];$reportId=(int)($input['report_id']??0);
+        $latitude=is_numeric($input['latitude']??null)?(float)$input['latitude']:null;$longitude=is_numeric($input['longitude']??null)?(float)$input['longitude']:null;$accuracy=is_numeric($input['accuracy']??null)?min(100000,max(0,(float)$input['accuracy'])):null;
+        if(!$reportId||$latitude===null||$longitude===null||$latitude < -90||$latitude > 90||$longitude < -180||$longitude > 180){header('Content-Type: application/json');http_response_code(422);echo json_encode(['ok'=>false,'message'=>'Ubicación inválida.']);exit;}
+        $result=PanicTracking::update($reportId,(int)$user['id'],$latitude,$longitude,$accuracy);header('Content-Type: application/json; charset=utf-8');http_response_code((int)$result['status']);echo json_encode($result,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
+    }
+    if($action==='panic_stop'){
+        $input=json_decode(file_get_contents('php://input'),true)?:$_POST;$reportId=(int)($input['report_id']??0);$stopped=$reportId?PanicTracking::stop($reportId,(int)$user['id']):false;
+        Audit::log('app_vecinos.panico_seguimiento_detenido','report',$reportId,null,['stopped'=>$stopped]);header('Content-Type: application/json; charset=utf-8');echo json_encode(['ok'=>true,'stopped'=>$stopped,'message'=>'Dejaste de compartir tu ubicación.'],JSON_UNESCAPED_UNICODE);exit;
     }
     if($action==='pet'){
         $name=trim($_POST['name']??'');$species=trim($_POST['species']??'');if(!$name||!$species)$redirect('mascotas','Completa el nombre y tipo de mascota.');
