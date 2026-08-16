@@ -6,6 +6,7 @@ use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\DeviceController;
 use App\Controllers\DispatchController;
+use App\Controllers\CitizenController;
 use App\Controllers\PetController;
 use App\Controllers\ReportController;
 
@@ -17,6 +18,8 @@ $router->post('/registro', [AuthController::class, 'register'], ['guest']);
 $router->post('/salir', [AuthController::class, 'logout'], ['auth']);
 
 $router->get('/panel', [DashboardController::class, 'index'], ['permission:dashboard.view']);
+$router->get('/mi-app', [CitizenController::class, 'index'], ['permission:dashboard.view']);
+$router->post('/mi-app/panico', [CitizenController::class, 'panic'], ['permission:reports.create']);
 $router->get('/reportes', [ReportController::class, 'index'], ['auth']);
 $router->get('/reportes/nuevo', [ReportController::class, 'create'], ['permission:reports.create']);
 $router->post('/reportes', [ReportController::class, 'store'], ['permission:reports.create']);
