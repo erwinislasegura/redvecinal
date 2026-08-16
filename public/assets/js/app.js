@@ -3,10 +3,16 @@
   const cfg = window.REDVECINAL || {baseUrl: '', csrf: ''};
   const base = (cfg.baseUrl || '').replace(/\/$/, '');
   const banner = document.getElementById('offlineBanner');
+  const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
+  function connectionAvailable() {
+    return isLocalHost || navigator.onLine;
+  }
 
   function updateOnline() {
-    if (banner) banner.hidden = navigator.onLine;
-    if (navigator.onLine) syncQueue();
+    const available = connectionAvailable();
+    if (banner) banner.hidden = available;
+    if (available) syncQueue();
   }
   window.addEventListener('online', updateOnline);
   window.addEventListener('offline', updateOnline);
@@ -46,7 +52,7 @@
   function saveQueue(items) { localStorage.setItem('redvecinal_offline_reports', JSON.stringify(items)); }
 
   document.querySelectorAll('[data-offline-form]').forEach((form) => form.addEventListener('submit', (event) => {
-    if (navigator.onLine) return;
+    if (connectionAvailable()) return;
     event.preventDefault();
     const data = Object.fromEntries(new FormData(form).entries());
     delete data.evidence;
