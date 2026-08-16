@@ -96,6 +96,21 @@
     });
   });
 
+  document.querySelectorAll('tr[data-href]').forEach((row) => {
+    row.tabIndex = 0;
+    row.setAttribute('role', 'link');
+    const openRow = (event) => {
+      if (event.target.closest('a, button, input, select, textarea, label, form, details, summary')) return;
+      window.location.href = row.dataset.href;
+    };
+    row.addEventListener('click', openRow);
+    row.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault();
+      openRow(event);
+    });
+  });
+
   function getQueue() { try { return JSON.parse(localStorage.getItem('redvecinal_offline_reports') || '[]'); } catch (error) { return []; } }
   function saveQueue(items) { localStorage.setItem('redvecinal_offline_reports', JSON.stringify(items)); }
   function getPanicQueue() { try { return JSON.parse(localStorage.getItem('redvecinal_offline_panics') || '[]'); } catch (error) { return []; } }
