@@ -39,13 +39,15 @@
   </section>
 
   <aside class="dashboard-side">
-    <?php if(can('users.manage') || can('communes.manage')): ?>
+    <?php if(can('users.manage') || can('communes.manage') || can('audit.view') || can('settings.manage')): ?>
       <section class="card panel-card quick-panel">
         <div class="card-header"><div><span class="card-eyebrow">ACCESOS DIRECTOS</span><h2>Administración</h2></div></div>
         <div class="quick-actions">
           <?php if(can('users.manage')): ?><a href="<?= url('administracion/usuarios') ?>"><span><?= svg_icon('users') ?></span><div><strong>Usuarios</strong><small>Roles y accesos</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
           <?php if(can('communes.manage')): ?><a href="<?= url('administracion/comunas') ?>"><span><?= svg_icon('map') ?></span><div><strong>Comunas</strong><small>Sectores territoriales</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
           <?php if(can('roles.manage')): ?><a href="<?= url('administracion/roles') ?>"><span><?= svg_icon('shield') ?></span><div><strong>Permisos</strong><small>Control de funciones</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
+          <?php if(can('audit.view')): ?><a href="<?= url('administracion/auditoria') ?>"><span><?= svg_icon('history') ?></span><div><strong>Auditoría</strong><small>Historial de acciones</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
+          <?php if(can('settings.manage')): ?><a href="<?= url('administracion/configuracion') ?>"><span><?= svg_icon('settings') ?></span><div><strong>Configuración</strong><small>Preferencias comunales</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
         </div>
       </section>
     <?php endif; ?>
