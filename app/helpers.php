@@ -67,6 +67,19 @@ function can(string $permission): bool
     return Auth::can($permission);
 }
 
+function setting(string $key, mixed $default = null, ?int $communeId = null): mixed
+{
+    static $cache = [];
+    $communeId = $communeId ?? (int) (Auth::user()['commune_id'] ?? 0);
+    if ($communeId <= 0) return $default;
+    $cacheKey = $communeId . ':' . $key;
+    if (!array_key_exists($cacheKey, $cache)) {
+        $value = \App\Core\Database::query('SELECT setting_value FROM settings WHERE commune_id=? AND setting_key=? LIMIT 1', [$communeId, $key])->fetchColumn();
+        $cache[$cacheKey] = $value === false ? $default : $value;
+    }
+    return $cache[$cacheKey];
+}
+
 function active(string $prefix): string
 {
     $path = trim(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/', '/');
@@ -103,6 +116,8 @@ function svg_icon(string $name, string $class = ''): string
         'chevron' => '<path d="m9 18 6-6-6-6"/>',
         'check' => '<path d="m5 12 4 4L19 6"/>',
         'clock' => '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+        'history' => '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
+        'settings' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"/>',
     ];
     $body = $icons[$name] ?? $icons['dashboard'];
     return '<svg class="ui-icon ' . e($class) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $body . '</svg>';
