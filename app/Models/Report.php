@@ -14,8 +14,12 @@ final class Report extends Model
         $where = ['1=1'];
         $params = [];
         if (!Auth::can('reports.commune')) {
-            $where[] = 'r.user_id = ?';
-            $params[] = $user['id'];
+            if (Auth::can('reports.own')) {
+                $where[] = 'r.user_id = ?';
+                $params[] = $user['id'];
+            } else {
+                $where[] = '1=0';
+            }
         } elseif ($user['role_slug'] !== 'superadmin') {
             $where[] = 'r.commune_id = ?';
             $params[] = $user['commune_id'];
@@ -46,7 +50,7 @@ final class Report extends Model
         )->fetch();
         if (!$report) return null;
         $user = Auth::user();
-        if (!Auth::can('reports.commune') && (int)$report['user_id'] !== (int)$user['id']) return null;
+        if (!Auth::can('reports.commune') && (!Auth::can('reports.own') || (int)$report['user_id'] !== (int)$user['id'])) return null;
         if ($user['role_slug'] !== 'superadmin' && Auth::can('reports.commune') && (int)$report['commune_id'] !== (int)$user['commune_id']) return null;
         return $report;
     }
@@ -63,4 +67,3 @@ final class Report extends Model
         return $id;
     }
 }
-
