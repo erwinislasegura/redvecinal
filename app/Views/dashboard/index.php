@@ -1,5 +1,64 @@
-<div class="welcome-card"><div><span class="eyebrow">RESUMEN COMUNAL</span><h2>Hola, <?= e(explode(' ',auth()['name'])[0]) ?></h2><p>Mantente informado y ayuda a construir una comunidad más segura.</p></div><a class="btn btn-light" href="<?= url('reportes/nuevo') ?>">Crear nuevo reporte</a></div>
-<div class="stats-grid"><article class="stat-card"><span class="stat-icon danger">⚠</span><div><strong><?= $stats['open'] ?></strong><span>Reportes activos</span></div></article><article class="stat-card"><span class="stat-icon success">✓</span><div><strong><?= $stats['resolved'] ?></strong><span>Resueltos este mes</span></div></article><article class="stat-card"><span class="stat-icon primary">♡</span><div><strong><?= $stats['pets'] ?></strong><span>Mascotas perdidas</span></div></article><article class="stat-card"><span class="stat-icon neutral">♙</span><div><strong><?= $stats['users'] ?></strong><span>Vecinos activos</span></div></article></div>
-<div class="dashboard-grid"><section class="card"><div class="card-header"><div><h2>Actividad reciente</h2><p>Últimos reportes de tu red</p></div><a href="<?= url('reportes') ?>">Ver todos</a></div><div class="report-list"><?php if(!$reports):?><div class="empty-state">Aún no hay reportes en esta comunidad.</div><?php endif;?><?php foreach($reports as $report):?><a class="report-row" href="<?= url('reportes/'.$report['id']) ?>"><span class="report-dot" style="background:<?= e($report['color']) ?>"></span><div><strong><?= e($report['title']) ?></strong><span><?= e($report['type_name']) ?> · <?= e($report['address']?:'Sin dirección') ?></span></div><span class="badge bg-<?= report_badge($report['status']) ?>"><?= e(str_replace('_',' ',$report['status'])) ?></span><time><?= e(date('d/m H:i',strtotime($report['created_at']))) ?></time></a><?php endforeach;?></div></section>
-<aside><section class="card mb-3"><div class="card-header"><div><h2>Emergencias</h2><p>Contacto directo</p></div></div><div class="emergency-list"><?php foreach($contacts as $contact):?><a href="tel:<?= e($contact['phone']) ?>"><span><?= e($contact['service']) ?></span><strong><?= e($contact['phone']) ?></strong></a><?php endforeach;?></div></section><section class="card"><div class="card-header"><div><h2>Notificaciones</h2></div></div><?php if(!$notifications):?><div class="empty-state small">No tienes notificaciones nuevas.</div><?php endif;?><?php foreach($notifications as $notification):?><a class="notification-row" href="<?= e($notification['action_url']?:'#') ?>"><strong><?= e($notification['title']) ?></strong><span><?= e($notification['message']) ?></span></a><?php endforeach;?></section></aside></div>
+<section class="dashboard-hero">
+  <div>
+    <span class="section-kicker">CENTRO DE OPERACIONES</span>
+    <h2>Buenos días, <?= e(explode(' ', auth()['name'])[0]) ?></h2>
+    <p>Revisa la actividad comunal y coordina las acciones pendientes desde un solo lugar.</p>
+  </div>
+  <div class="hero-meta">
+    <span><?= svg_icon('clock') ?> Actualizado <?= date('H:i') ?></span>
+    <?php if(can('reports.create')): ?><a class="btn btn-light" href="<?= url('reportes/nuevo') ?>"><?= svg_icon('plus') ?> Crear reporte</a><?php endif; ?>
+  </div>
+</section>
 
+<section class="stats-grid" aria-label="Indicadores principales">
+  <article class="stat-card stat-danger"><div class="stat-top"><span class="stat-icon"><?= svg_icon('alert') ?></span><span class="stat-trend">Pendientes</span></div><strong><?= $stats['open'] ?></strong><p>Reportes activos</p><a href="<?= url('reportes?status=nuevo') ?>">Revisar reportes <?= svg_icon('chevron') ?></a></article>
+  <article class="stat-card stat-success"><div class="stat-top"><span class="stat-icon"><?= svg_icon('check') ?></span><span class="stat-trend">Últimos 30 días</span></div><strong><?= $stats['resolved'] ?></strong><p>Casos resueltos</p><a href="<?= url('reportes?status=resuelto') ?>">Ver resultados <?= svg_icon('chevron') ?></a></article>
+  <article class="stat-card stat-primary"><div class="stat-top"><span class="stat-icon"><?= svg_icon('paw') ?></span><span class="stat-trend">En búsqueda</span></div><strong><?= $stats['pets'] ?></strong><p>Mascotas perdidas</p><a href="<?= url('mascotas') ?>">Ir a mascotas <?= svg_icon('chevron') ?></a></article>
+  <article class="stat-card stat-neutral"><div class="stat-top"><span class="stat-icon"><?= svg_icon('users') ?></span><span class="stat-trend">Comunidad</span></div><strong><?= $stats['users'] ?></strong><p>Vecinos activos</p><?php if(can('users.manage')): ?><a href="<?= url('administracion/usuarios') ?>">Gestionar usuarios <?= svg_icon('chevron') ?></a><?php else: ?><span class="stat-caption">Red comunal registrada</span><?php endif; ?></article>
+</section>
+
+<div class="dashboard-grid">
+  <section class="card panel-card activity-panel">
+    <div class="card-header">
+      <div><span class="card-eyebrow">SEGUIMIENTO</span><h2>Actividad reciente</h2><p>Reportes ordenados por prioridad y fecha</p></div>
+      <a class="text-link" href="<?= url('reportes') ?>">Ver todos <?= svg_icon('chevron') ?></a>
+    </div>
+    <div class="report-list">
+      <?php if(!$reports): ?><div class="empty-state"><span class="empty-icon"><?= svg_icon('check') ?></span><strong>Todo está al día</strong><p>Aún no hay reportes en esta comunidad.</p></div><?php endif; ?>
+      <?php foreach($reports as $report): ?>
+        <a class="report-row" href="<?= url('reportes/'.$report['id']) ?>">
+          <span class="report-symbol" style="--report-color:<?= e($report['color']) ?>"><?= e(mb_strtoupper(mb_substr($report['type_name'],0,1))) ?></span>
+          <div class="report-copy"><strong><?= e($report['title']) ?></strong><span><?= e($report['type_name']) ?> <i></i> <?= e($report['address'] ?: 'Sin dirección informada') ?></span></div>
+          <span class="priority priority-<?= e($report['priority']) ?>"><?= e($report['priority']) ?></span>
+          <span class="badge bg-<?= report_badge($report['status']) ?>"><?= e(str_replace('_',' ',$report['status'])) ?></span>
+          <time><strong><?= e(date('H:i',strtotime($report['created_at']))) ?></strong><span><?= e(date('d/m/Y',strtotime($report['created_at']))) ?></span></time>
+          <?= svg_icon('chevron','row-chevron') ?>
+        </a>
+      <?php endforeach; ?>
+    </div>
+  </section>
+
+  <aside class="dashboard-side">
+    <?php if(can('users.manage') || can('communes.manage')): ?>
+      <section class="card panel-card quick-panel">
+        <div class="card-header"><div><span class="card-eyebrow">ACCESOS DIRECTOS</span><h2>Administración</h2></div></div>
+        <div class="quick-actions">
+          <?php if(can('users.manage')): ?><a href="<?= url('administracion/usuarios') ?>"><span><?= svg_icon('users') ?></span><div><strong>Usuarios</strong><small>Roles y accesos</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
+          <?php if(can('communes.manage')): ?><a href="<?= url('administracion/comunas') ?>"><span><?= svg_icon('map') ?></span><div><strong>Comunas</strong><small>Sectores territoriales</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
+          <?php if(can('roles.manage')): ?><a href="<?= url('administracion/roles') ?>"><span><?= svg_icon('shield') ?></span><div><strong>Permisos</strong><small>Control de funciones</small></div><?= svg_icon('chevron') ?></a><?php endif; ?>
+        </div>
+      </section>
+    <?php endif; ?>
+
+    <section class="card panel-card emergency-panel">
+      <div class="card-header"><div><span class="card-eyebrow">CONTACTO DIRECTO</span><h2>Emergencias</h2></div><span class="live-label"><i></i> 24/7</span></div>
+      <div class="emergency-list"><?php foreach($contacts as $contact): ?><a href="tel:<?= e($contact['phone']) ?>"><span><strong><?= e($contact['service']) ?></strong><small><?= e($contact['name']) ?></small></span><b><?= e($contact['phone']) ?></b></a><?php endforeach; ?></div>
+    </section>
+
+    <section class="card panel-card notification-panel">
+      <div class="card-header"><div><span class="card-eyebrow">BANDEJA</span><h2>Notificaciones</h2></div></div>
+      <?php if(!$notifications): ?><div class="empty-state compact"><span class="empty-icon"><?= svg_icon('bell') ?></span><p>No tienes notificaciones nuevas.</p></div><?php endif; ?>
+      <?php foreach($notifications as $notification): ?><a class="notification-row" href="<?= e($notification['action_url'] ?: '#') ?>"><span class="notification-dot"></span><div><strong><?= e($notification['title']) ?></strong><p><?= e($notification['message']) ?></p><small><?= e(date('d/m/Y H:i',strtotime($notification['created_at']))) ?></small></div></a><?php endforeach; ?>
+    </section>
+  </aside>
+</div>
