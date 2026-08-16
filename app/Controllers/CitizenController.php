@@ -13,7 +13,7 @@ final class CitizenController extends Controller
 {
     public function landing(): void
     {
-        if(Auth::check())$this->redirect('mi-app');
+        if(Auth::check()){header('Location: '.url('vecinos/'));exit;}
         $communes=Database::query("SELECT * FROM communes WHERE status='activa' ORDER BY region,name")->fetchAll();
         $sectors=Database::query("SELECT s.* FROM sectors s JOIN communes c ON c.id=s.commune_id WHERE s.status='activo' AND c.status='activa' ORDER BY s.name")->fetchAll();
         $this->view('citizen/landing',compact('communes','sectors')+['title'=>'Descargar app para vecinos','publicPage'=>true]);
@@ -31,34 +31,29 @@ final class CitizenController extends Controller
         $sector=$sectorId?Database::query("SELECT id FROM sectors WHERE id=? AND commune_id=? AND status='activo'",[$sectorId,$communeId])->fetch():null;
         $validPhone=static fn(string $value): bool => strlen(preg_replace('/\D/','',$value))>=9;
         if(!$name||!$this->validRut($rut)||!filter_var($email,FILTER_VALIDATE_EMAIL)||!$validPhone($phone)||!$address||!$commune||($sectorId&&!$sector)||!$contactName||!$validPhone($contactPhone)||!$relationship||strlen($password)<8||$password!==$confirmation||empty($_POST['terms'])){
-            $this->rememberInput();$this->redirect('vecinos#registro','Completa correctamente los datos personales, domicilio, contacto de emergencia y contraseña.','danger');
+            $this->rememberInput();$this->redirect('descargar-vecinos#registro','Completa correctamente los datos personales, domicilio, contacto de emergencia y contraseña.','danger');
         }
         if(Database::query('SELECT COUNT(*) FROM users WHERE email=? OR rut=?',[$email,$rut])->fetchColumn()){
-            $this->rememberInput();$this->redirect('vecinos#registro','El correo o RUT ya se encuentra registrado.','danger');
+            $this->rememberInput();$this->redirect('descargar-vecinos#registro','El correo o RUT ya se encuentra registrado.','danger');
         }
         $this->ensureSecuritySchema();
         $roleId=(int)Database::query("SELECT id FROM roles WHERE slug='vecino' LIMIT 1")->fetchColumn();
-        if(!$roleId){$this->redirect('vecinos#registro','No se encuentra configurado el rol Vecino.','danger');}
+        if(!$roleId){$this->redirect('descargar-vecinos#registro','No se encuentra configurado el rol Vecino.','danger');}
         $db=Database::connection();$db->beginTransaction();
         try{
             Database::query("INSERT INTO users (role_id,commune_id,sector_id,name,rut,email,phone,address,password,status) VALUES (?,?,?,?,?,?,?,?,?,'activo')",[$roleId,$communeId,$sectorId?:null,$name,$rut,$email,$phone,$address,password_hash($password,PASSWORD_DEFAULT)]);
             $userId=(int)$db->lastInsertId();
             Database::query('INSERT INTO user_emergency_contacts (user_id,name,relationship,phone) VALUES (?,?,?,?)',[$userId,$contactName,$relationship,$contactPhone]);
             $db->commit();
-        }catch(\Throwable $error){if($db->inTransaction())$db->rollBack();$this->rememberInput();$this->redirect('vecinos#registro','No se pudo crear la cuenta. Revisa si tus datos ya están registrados.','danger');}
+        }catch(\Throwable $error){if($db->inTransaction())$db->rollBack();$this->rememberInput();$this->redirect('descargar-vecinos#registro','No se pudo crear la cuenta. Revisa si tus datos ya están registrados.','danger');}
         Auth::attempt($email,$password);
         Audit::log('vecino.registrado','user',$userId,null,['name'=>$name,'rut'=>$rut,'commune_id'=>$communeId,'sector_id'=>$sectorId?:null],$userId);
-        $this->redirect('mi-app','Tu cuenta vecinal y ficha de seguridad fueron creadas correctamente.');
+        $_SESSION['neighbor_flash']='Tu cuenta vecinal y ficha de seguridad fueron creadas correctamente.';header('Location: '.url('vecinos/'));exit;
     }
 
     public function index(): void
     {
-        $user=Auth::user();
-        $reports=array_slice((new Report())->all(),0,6);
-        $contacts=Database::query('SELECT * FROM emergency_contacts WHERE active=1 AND (commune_id IS NULL OR commune_id=?) ORDER BY available_24h DESC,name',[$user['commune_id']])->fetchAll();
-        $pets=(int)Database::query('SELECT COUNT(*) FROM pets WHERE user_id=?',[$user['id']])->fetchColumn();
-        $devices=(int)Database::query('SELECT COUNT(*) FROM devices WHERE user_id=?',[$user['id']])->fetchColumn();
-        $this->view('citizen/index',compact('reports','contacts','pets','devices')+['title'=>'Mi RedVecinal']);
+        header('Location: '.url('vecinos/'));exit;
     }
 
     public function panic(): void
