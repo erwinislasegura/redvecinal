@@ -15,7 +15,8 @@ use App\Models\Report;
 
 if(!Auth::check()){$_SESSION['_flash']['message']='Inicia sesión para abrir la aplicación vecinal.';$_SESSION['_flash']['type']='warning';header('Location: '.url('ingresar?next=vecinos'));exit;}
 $user=Auth::user();
-$page=in_array($_GET['page']??'inicio',['inicio','reportar','reportes','mascotas','seguridad','perfil'],true)?$_GET['page']:'inicio';
+$requestedPage=(string)($_GET['page']??'inicio');
+$page=in_array($requestedPage,['inicio','reportar','reportes','mascotas','seguridad','perfil'],true)?$requestedPage:'inicio';
 $redirect=static function(string $target='inicio',string $message=''): never {if($message)$_SESSION['neighbor_flash']=$message;header('Location: '.url('vecinos/').($target==='inicio'?'':'?page='.$target));exit;};
 $ensureContactTable=static function(): void {Database::connection()->exec("CREATE TABLE IF NOT EXISTS user_emergency_contacts (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id BIGINT UNSIGNED NOT NULL,name VARCHAR(120) NOT NULL,relationship VARCHAR(80) NOT NULL,phone VARCHAR(30) NOT NULL,notes VARCHAR(500) NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_user_emergency_contact (user_id),CONSTRAINT fk_uec_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");};
 
