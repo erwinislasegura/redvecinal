@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
 
@@ -25,6 +26,7 @@ final class AuthController extends Controller
     {
         $this->validateCsrf();
         if (Auth::attempt((string)($_POST['email'] ?? ''), (string)($_POST['password'] ?? ''))) {
+            Audit::log('sesion.iniciada','user',Auth::user()['id']);
             $this->redirect('panel', 'Bienvenido/a a RedVecinal.');
         }
         $this->rememberInput();
@@ -56,16 +58,18 @@ final class AuthController extends Controller
             "INSERT INTO users (role_id,commune_id,name,email,phone,address,password,status) VALUES (6,?,?,?,?,?,?,'activo')",
             [$communeId,$name,$email,trim($_POST['phone'] ?? ''),trim($_POST['address'] ?? ''),password_hash($password,PASSWORD_DEFAULT)]
         );
+        $userId=(int)Database::connection()->lastInsertId();
         Auth::attempt($email,$password);
+        Audit::log('usuario.registrado','user',$userId,null,['name'=>$name,'email'=>$email,'commune_id'=>$communeId],$userId);
         $this->redirect('panel','Tu cuenta fue creada correctamente.');
     }
 
     public function logout(): void
     {
         $this->validateCsrf();
+        $user=Auth::user();Audit::log('sesion.cerrada','user',$user['id']??null,null,null,$user['id']??null);
         Auth::logout();
         header('Location: ' . url('ingresar'));
         exit;
     }
 }
-
