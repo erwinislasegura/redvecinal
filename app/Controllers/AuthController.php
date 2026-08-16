@@ -19,7 +19,9 @@ final class AuthController extends Controller
 
     public function loginForm(): void
     {
-        $this->view('auth/login', ['title' => 'Ingresar', 'publicPage' => true]);
+        $referrer=(string)($_SERVER['HTTP_REFERER']??'');
+        $next=(($_GET['next']??'')==='vecinos'||str_contains($referrer,'descargar-vecinos'))?'vecinos':'';
+        $this->view('auth/login', ['title' => 'Ingresar', 'publicPage' => true, 'next'=>$next]);
     }
 
     public function login(): void
@@ -27,15 +29,19 @@ final class AuthController extends Controller
         $this->validateCsrf();
         if (Auth::attempt((string)($_POST['email'] ?? ''), (string)($_POST['password'] ?? ''))) {
             Audit::log('sesion.iniciada','user',Auth::user()['id']);
+            if(($_POST['next']??'')==='vecinos'){
+                $_SESSION['neighbor_flash']='Bienvenido/a a tu aplicación vecinal.';
+                header('Location: '.url('vecinos/'));exit;
+            }
             $this->redirect('panel', 'Bienvenido/a a RedVecinal.');
         }
         $this->rememberInput();
-        $this->redirect('ingresar', 'Correo o contraseña incorrectos.', 'danger');
+        $this->redirect('ingresar'.(($_POST['next']??'')==='vecinos'?'?next=vecinos':''), 'Correo o contraseña incorrectos.', 'danger');
     }
 
     public function registerForm(): void
     {
-        $this->redirect('vecinos#registro');
+        $this->redirect('descargar-vecinos#registro');
     }
 
     public function register(): void
