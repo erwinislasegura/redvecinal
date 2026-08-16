@@ -28,7 +28,9 @@ final class DashboardController extends Controller
             'priority'=>$report['priority'],'status'=>$report['status'],'color'=>$report['color'],'address'=>$report['address'],
             'lat'=>(float)$report['latitude'],'lng'=>(float)$report['longitude'],'url'=>url('reportes/'.$report['id'])
         ],array_filter($allReports,static fn(array $report): bool => is_numeric($report['latitude'])&&is_numeric($report['longitude']))));
-        $mapConfig=['lat'=>(float)setting('map_center_lat','-37.4689',(int)$user['commune_id']),'lng'=>(float)setting('map_center_lng','-72.3527',(int)$user['commune_id']),'zoom'=>(int)setting('map_zoom','13',(int)$user['commune_id']),'commune'=>$user['commune_name']??'Comuna'];
+        $configuredCommuneId=(int)setting('map_commune_id',(string)$user['commune_id'],(int)$user['commune_id']);
+        $configuredCommune=$configuredCommuneId?Database::query("SELECT name,region FROM communes WHERE id=? AND status='activa'",[$configuredCommuneId])->fetch():false;
+        $mapConfig=['lat'=>(float)setting('map_center_lat','-37.4689',(int)$user['commune_id']),'lng'=>(float)setting('map_center_lng','-72.3527',(int)$user['commune_id']),'zoom'=>(int)setting('map_zoom','13',(int)$user['commune_id']),'commune'=>$configuredCommune['name']??$user['commune_name']??'Comuna'];
         $contacts = Database::query('SELECT * FROM emergency_contacts WHERE active=1 AND (commune_id IS NULL OR commune_id=?) ORDER BY available_24h DESC,name', [$user['commune_id']])->fetchAll();
         $notifications = Database::query('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 5', [$user['id']])->fetchAll();
         $this->view('dashboard/index', compact('stats','reports','contacts','notifications','mapReports','mapConfig') + ['title'=>'Panel','useMap'=>true]);
