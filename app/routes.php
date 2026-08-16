@@ -23,6 +23,7 @@ $router->post('/descargar-vecinos/registro', [CitizenController::class, 'registe
 $router->get('/panel', [DashboardController::class, 'index'], ['permission:dashboard.view']);
 $router->get('/api/alertas-panico', [DashboardController::class, 'panicAlerts'], ['permission:reports.manage']);
 $router->get('/api/seguimiento-panico', [DashboardController::class, 'panicTracking'], ['permission:reports.manage']);
+$router->get('/api/reportes/{id}/seguimiento-panico', [DashboardController::class, 'reportPanicTracking'], ['permission:reports.manage']);
 $router->post('/api/alertas-panico/{id}/confirmar', [DashboardController::class, 'acknowledgePanic'], ['permission:reports.manage']);
 $router->get('/mi-app', [CitizenController::class, 'index'], ['auth']);
 $router->post('/mi-app/panico', [CitizenController::class, 'panic'], ['auth']);

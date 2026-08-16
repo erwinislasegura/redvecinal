@@ -1,3 +1,10 @@
+<?php if(!empty($isPanic)&&can('reports.manage')): ?>
+<section class="card report-live-tracking" id="seguimiento-panico" data-report-live-tracking="<?= (int)$report['id'] ?>" data-initial-lat="<?= e((string)($report['latitude']??'')) ?>" data-initial-lng="<?= e((string)($report['longitude']??'')) ?>">
+  <div class="report-live-head"><div class="report-live-title"><span class="report-live-siren">!</span><div><small>EMERGENCIA · GPS EN TIEMPO REAL</small><h2>Seguimiento del botón de pánico</h2><p>La posición y el recorrido se actualizan automáticamente cada 5 segundos.</p></div></div><div class="report-live-state" data-report-live-state><i></i><div><strong>Conectando con el dispositivo</strong><small data-report-live-time>Esperando la última posición…</small></div></div></div>
+  <div class="report-live-map" id="reportLiveTrackingMap" aria-label="Mapa de seguimiento GPS en tiempo real"></div>
+  <div class="report-live-meta"><div><small>Última señal</small><strong data-report-live-last>—</strong></div><div><small>Precisión GPS</small><strong data-report-live-accuracy>—</strong></div><div><small>Puntos del recorrido</small><strong data-report-live-points>0</strong></div><div><small>Coordenadas actuales</small><strong data-report-live-coordinates>—</strong></div></div>
+</section>
+<?php endif; ?>
 <?php require BASE_PATH . '/app/Views/reports/show.php'; ?>
 <?php if($media): ?>
 <section class="card mt-4">

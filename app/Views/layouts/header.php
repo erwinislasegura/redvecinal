@@ -50,6 +50,7 @@ $unreadNotifications = $currentUser
           <div><small>Hora de activación</small><strong data-admin-panic-time>—</strong></div>
         </div>
         <div class="admin-panic-code"><span data-admin-panic-code>ALERTA</span><small>No cierres esta ventana sin confirmar que viste la emergencia.</small></div>
+        <div class="admin-panic-live"><i></i><strong data-admin-panic-live>Buscando señal GPS en vivo…</strong></div>
         <p class="admin-panic-error" data-admin-panic-error hidden></p>
       </div>
       <footer class="admin-panic-actions">

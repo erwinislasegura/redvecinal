@@ -107,4 +107,17 @@ final class DashboardController extends Controller
         ];},$trackings);
         $this->json(['ok'=>true,'trackings'=>$items,'server_time'=>date(DATE_ATOM)]);
     }
+
+    public function reportPanicTracking(string $id): void
+    {
+        $report=(new Report())->find((int)$id);if(!$report)$this->json(['ok'=>false,'message'=>'Reporte no encontrado.'],404);
+        try{$item=PanicTracking::forReport((int)$id);}catch(\Throwable $error){error_log('RedVecinal detalle seguimiento pánico: '.$error->getMessage());$this->json(['ok'=>false,'message'=>'Seguimiento GPS no disponible.'],503);}
+        if(!$item)$this->json(['ok'=>true,'tracking'=>null]);
+        $this->json(['ok'=>true,'tracking'=>[
+            'tracking_id'=>(int)$item['tracking_id'],'report_id'=>(int)$item['report_id'],'status'=>$item['status'],'report_status'=>$item['report_status'],
+            'reporter'=>$item['reporter_name'],'phone'=>$item['reporter_phone'],'latitude'=>is_numeric($item['last_latitude'])?(float)$item['last_latitude']:null,
+            'longitude'=>is_numeric($item['last_longitude'])?(float)$item['last_longitude']:null,'accuracy'=>is_numeric($item['last_accuracy'])?(float)$item['last_accuracy']:null,
+            'started_at'=>$item['started_at'],'stopped_at'=>$item['stopped_at'],'last_seen_at'=>$item['last_seen_at'],'trail'=>$item['trail'],
+        ]]);
+    }
 }

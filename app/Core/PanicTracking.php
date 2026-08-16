@@ -86,6 +86,18 @@ final class PanicTracking
         unset($row);return $rows;
     }
 
+    public static function forReport(int $reportId): ?array
+    {
+        self::ensureSchema();
+        $row=Database::query("SELECT pt.id tracking_id,pt.report_id,pt.status,pt.started_at,pt.stopped_at,pt.last_latitude,pt.last_longitude,pt.last_accuracy,pt.last_seen_at,r.public_code,r.status report_status,u.name reporter_name,u.phone reporter_phone FROM panic_trackings pt JOIN reports r ON r.id=pt.report_id JOIN users u ON u.id=pt.user_id WHERE pt.report_id=? LIMIT 1",[$reportId])->fetch();
+        if(!$row)return null;
+        if($row['status']==='activo'&&(in_array($row['report_status'],['resuelto','cerrado','rechazado'],true)||strtotime((string)$row['started_at'])<time()-7200)){
+            $newStatus=in_array($row['report_status'],['resuelto','cerrado','rechazado'],true)?'finalizado':'expirado';Database::query('UPDATE panic_trackings SET status=?,stopped_at=NOW() WHERE id=?',[$newStatus,$row['tracking_id']]);$row['status']=$newStatus;$row['stopped_at']=date('Y-m-d H:i:s');
+        }
+        $points=Database::query('SELECT latitude,longitude,accuracy,recorded_at FROM panic_tracking_points WHERE tracking_id=? ORDER BY recorded_at DESC,id DESC LIMIT 200',[$row['tracking_id']])->fetchAll();
+        $row['trail']=array_reverse(array_map(static fn(array $point):array=>['lat'=>(float)$point['latitude'],'lng'=>(float)$point['longitude'],'accuracy'=>$point['accuracy']!==null?(float)$point['accuracy']:null,'recorded_at'=>$point['recorded_at']],$points));return $row;
+    }
+
     private static function storePoint(int $trackingId, float $latitude, float $longitude, ?float $accuracy): void
     {
         $last=Database::query('SELECT latitude,longitude,recorded_at FROM panic_tracking_points WHERE tracking_id=? ORDER BY id DESC LIMIT 1',[$trackingId])->fetch();

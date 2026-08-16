@@ -73,7 +73,8 @@ final class ReportController extends Controller
         $media=Database::query('SELECT * FROM report_media WHERE report_id=? ORDER BY created_at',[$id])->fetchAll();
         $operators=Database::query("SELECT u.id,u.name,r.name AS role_name FROM users u JOIN roles r ON r.id=u.role_id WHERE u.commune_id=? AND r.slug IN ('operador','respondedor','admin_municipal') AND u.status='activo'",[$report['commune_id']])->fetchAll();
         $securityContact=null;if(Auth::can('reports.manage')){try{$securityContact=Database::query('SELECT name,relationship,phone FROM user_emergency_contacts WHERE user_id=? LIMIT 1',[$report['user_id']])->fetch()?:null;}catch(\Throwable){$securityContact=null;}}
-        $this->view('reports/show_wrapper',compact('report','comments','history','dispatches','operators','media','securityContact')+['title'=>$report['public_code']]);
+        $isPanic=$report['title']==='ALERTA DE PÁNICO';
+        $this->view('reports/show_wrapper',compact('report','comments','history','dispatches','operators','media','securityContact','isPanic')+['title'=>$report['public_code'],'useMap'=>$isPanic&&Auth::can('reports.manage')]);
     }
 
     public function comment(string $id): void

@@ -215,6 +215,26 @@
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLiveTracking();});refreshLiveTracking();setInterval(refreshLiveTracking,5000);
   }
 
+  const reportLiveShell=document.querySelector('[data-report-live-tracking]');
+  const reportLiveMapElement=document.getElementById('reportLiveTrackingMap');
+  if(reportLiveShell&&reportLiveMapElement&&window.L){
+    const reportId=Number(reportLiveShell.dataset.reportLiveTracking);const initialLat=Number(reportLiveShell.dataset.initialLat);const initialLng=Number(reportLiveShell.dataset.initialLng);const hasInitial=Number.isFinite(initialLat)&&Number.isFinite(initialLng)&&initialLat!==0&&initialLng!==0;
+    const reportMap=L.map(reportLiveMapElement,{zoomControl:true}).setView(hasInitial?[initialLat,initialLng]:[-37.4689,-72.3527],hasInitial?17:13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(reportMap);
+    const state=reportLiveShell.querySelector('[data-report-live-state]');const stateTitle=state.querySelector('strong');const stateTime=reportLiveShell.querySelector('[data-report-live-time]');const last=reportLiveShell.querySelector('[data-report-live-last]');const accuracyText=reportLiveShell.querySelector('[data-report-live-accuracy]');const pointsText=reportLiveShell.querySelector('[data-report-live-points]');const coordinates=reportLiveShell.querySelector('[data-report-live-coordinates]');
+    const icon=L.divIcon({className:'live-panic-icon-wrap',html:'<span class="live-panic-marker"><i></i></span>',iconSize:[34,34],iconAnchor:[17,17]});let marker=null;let centered=false;const trail=L.polyline([],{color:'#e0202b',weight:5,opacity:.88}).addTo(reportMap);const accuracyCircle=L.circle(hasInitial?[initialLat,initialLng]:[-37.4689,-72.3527],{radius:0,color:'#e0202b',weight:1,fillColor:'#e0202b',fillOpacity:.09}).addTo(reportMap);
+    if(hasInitial)marker=L.marker([initialLat,initialLng],{icon,zIndexOffset:2000}).addTo(reportMap);
+    const refreshReportTracking=async()=>{
+      try{
+        const response=await fetch(`${base}/api/reportes/${reportId}/seguimiento-panico`,{headers:{Accept:'application/json'},credentials:'same-origin',cache:'no-store'});if(!response.ok)throw new Error('No fue posible consultar el seguimiento.');const data=await response.json();const tracking=data.tracking;
+        if(!tracking){state.className='report-live-state stopped';stateTitle.textContent='Seguimiento aún no iniciado';stateTime.textContent='No existen posiciones registradas para esta alerta.';return;}
+        const active=tracking.status==='activo';const lastSeen=tracking.last_seen_at?new Date(String(tracking.last_seen_at).replace(' ','T')):null;const stale=active&&lastSeen&&Date.now()-lastSeen.getTime()>30000;state.className=`report-live-state${stale?' stale':''}${active?'':' stopped'}`;
+        stateTitle.textContent=active?(stale?'Señal GPS demorada':'Ubicación compartida en vivo'):`Seguimiento ${String(tracking.status).replaceAll('_',' ')}`;stateTime.textContent=active?'Actualización automática cada 5 segundos':'Se conserva el último recorrido registrado';last.textContent=lastSeen?new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'medium'}).format(lastSeen):'Sin señal recibida';accuracyText.textContent=tracking.accuracy?`±${Math.round(tracking.accuracy)} metros`:'No informada';pointsText.textContent=String((tracking.trail||[]).length);
+        if(Number.isFinite(tracking.latitude)&&Number.isFinite(tracking.longitude)){const latlng=[tracking.latitude,tracking.longitude];coordinates.textContent=`${tracking.latitude.toFixed(6)}, ${tracking.longitude.toFixed(6)}`;if(!marker)marker=L.marker(latlng,{icon,zIndexOffset:2000}).addTo(reportMap);else marker.setLatLng(latlng);accuracyCircle.setLatLng(latlng).setRadius(tracking.accuracy||0);trail.setLatLngs((tracking.trail||[]).map(point=>[point.lat,point.lng]));const markerNode=marker.getElement()?.querySelector('.live-panic-marker');if(markerNode)markerNode.classList.toggle('stale',Boolean(stale||!active));if(!centered){centered=true;reportMap.setView(latlng,17);}}
+      }catch(error){state.className='report-live-state stale';stateTitle.textContent='Reconectando seguimiento';stateTime.textContent='Se intentará nuevamente en 5 segundos.';}
+    };
+    setTimeout(()=>reportMap.invalidateSize(),100);document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshReportTracking();});refreshReportTracking();setInterval(refreshReportTracking,5000);
+  }
+
   const panicAlert=document.getElementById('adminPanicAlert');
   if(panicAlert){
     const fields={
@@ -222,7 +242,7 @@
       reporter:panicAlert.querySelector('[data-admin-panic-reporter]'),phone:panicAlert.querySelector('[data-admin-panic-phone]'),
       address:panicAlert.querySelector('[data-admin-panic-address]'),time:panicAlert.querySelector('[data-admin-panic-time]'),
       code:panicAlert.querySelector('[data-admin-panic-code]'),open:panicAlert.querySelector('[data-admin-panic-open]'),
-      acknowledge:panicAlert.querySelector('[data-admin-panic-ack]'),error:panicAlert.querySelector('[data-admin-panic-error]')
+      acknowledge:panicAlert.querySelector('[data-admin-panic-ack]'),error:panicAlert.querySelector('[data-admin-panic-error]'),live:panicAlert.querySelector('[data-admin-panic-live]')
     };
     let alerts=[];let currentId=0;let lastSignaledId=0;let polling=false;let titleTimer=null;const originalTitle=document.title;
     const signalEmergency=()=>{
@@ -245,7 +265,7 @@
       fields.message.textContent=alert.message||'Un vecino necesita asistencia inmediata.';fields.reporter.textContent=alert.reporter||'Vecino/a';
       fields.phone.textContent=alert.phone||'No informado';fields.phone.removeAttribute('href');if(alert.phone)fields.phone.href=`tel:${alert.phone.replace(/[^+\d]/g,'')}`;
       fields.address.textContent=[alert.address,alert.commune].filter(Boolean).join(' · ');fields.time.textContent=new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'medium'}).format(new Date(alert.created_at));
-      fields.code.textContent=alert.code||`ALERTA #${alert.id}`;fields.open.href=alert.action_url||'#';fields.error.hidden=true;fields.acknowledge.disabled=false;fields.acknowledge.textContent='Confirmar recepción';
+      fields.code.textContent=alert.code||`ALERTA #${alert.id}`;fields.open.href=(alert.action_url||'#')+'#seguimiento-panico';fields.open.textContent='Ver seguimiento en tiempo real';fields.live.textContent=Number.isFinite(alert.latitude)&&Number.isFinite(alert.longitude)?`GPS activo · ${Number(alert.latitude).toFixed(6)}, ${Number(alert.longitude).toFixed(6)}`:'Esperando señal GPS del dispositivo…';fields.error.hidden=true;fields.acknowledge.disabled=false;fields.acknowledge.textContent='Confirmar recepción';
       if(lastSignaledId!==alert.id){lastSignaledId=alert.id;signalEmergency();startTitleAlert();}
     };
     const fetchAlerts=async()=>{
