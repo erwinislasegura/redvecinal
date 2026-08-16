@@ -11,6 +11,46 @@ use App\Models\Report;
 
 final class CitizenController extends Controller
 {
+    public function landing(): void
+    {
+        if(Auth::check())$this->redirect('mi-app');
+        $communes=Database::query("SELECT * FROM communes WHERE status='activa' ORDER BY region,name")->fetchAll();
+        $sectors=Database::query("SELECT s.* FROM sectors s JOIN communes c ON c.id=s.commune_id WHERE s.status='activo' AND c.status='activa' ORDER BY s.name")->fetchAll();
+        $this->view('citizen/landing',compact('communes','sectors')+['title'=>'Descargar app para vecinos','publicPage'=>true]);
+    }
+
+    public function registerNeighbor(): void
+    {
+        $this->validateCsrf();
+        $name=trim((string)($_POST['name']??''));$rut=$this->normalizeRut((string)($_POST['rut']??''));
+        $email=mb_strtolower(trim((string)($_POST['email']??'')));$phone=trim((string)($_POST['phone']??''));
+        $address=trim((string)($_POST['address']??''));$communeId=(int)($_POST['commune_id']??0);$sectorId=(int)($_POST['sector_id']??0);
+        $contactName=trim((string)($_POST['emergency_name']??''));$contactPhone=trim((string)($_POST['emergency_phone']??''));$relationship=trim((string)($_POST['emergency_relationship']??''));
+        $password=(string)($_POST['password']??'');$confirmation=(string)($_POST['password_confirmation']??'');
+        $commune=$communeId?Database::query("SELECT id FROM communes WHERE id=? AND status='activa'",[$communeId])->fetch():false;
+        $sector=$sectorId?Database::query("SELECT id FROM sectors WHERE id=? AND commune_id=? AND status='activo'",[$sectorId,$communeId])->fetch():null;
+        $validPhone=static fn(string $value): bool => strlen(preg_replace('/\D/','',$value))>=9;
+        if(!$name||!$this->validRut($rut)||!filter_var($email,FILTER_VALIDATE_EMAIL)||!$validPhone($phone)||!$address||!$commune||($sectorId&&!$sector)||!$contactName||!$validPhone($contactPhone)||!$relationship||strlen($password)<8||$password!==$confirmation||empty($_POST['terms'])){
+            $this->rememberInput();$this->redirect('vecinos#registro','Completa correctamente los datos personales, domicilio, contacto de emergencia y contraseña.','danger');
+        }
+        if(Database::query('SELECT COUNT(*) FROM users WHERE email=? OR rut=?',[$email,$rut])->fetchColumn()){
+            $this->rememberInput();$this->redirect('vecinos#registro','El correo o RUT ya se encuentra registrado.','danger');
+        }
+        $this->ensureSecuritySchema();
+        $roleId=(int)Database::query("SELECT id FROM roles WHERE slug='vecino' LIMIT 1")->fetchColumn();
+        if(!$roleId){$this->redirect('vecinos#registro','No se encuentra configurado el rol Vecino.','danger');}
+        $db=Database::connection();$db->beginTransaction();
+        try{
+            Database::query("INSERT INTO users (role_id,commune_id,sector_id,name,rut,email,phone,address,password,status) VALUES (?,?,?,?,?,?,?,?,?,'activo')",[$roleId,$communeId,$sectorId?:null,$name,$rut,$email,$phone,$address,password_hash($password,PASSWORD_DEFAULT)]);
+            $userId=(int)$db->lastInsertId();
+            Database::query('INSERT INTO user_emergency_contacts (user_id,name,relationship,phone) VALUES (?,?,?,?)',[$userId,$contactName,$relationship,$contactPhone]);
+            $db->commit();
+        }catch(\Throwable $error){if($db->inTransaction())$db->rollBack();$this->rememberInput();$this->redirect('vecinos#registro','No se pudo crear la cuenta. Revisa si tus datos ya están registrados.','danger');}
+        Auth::attempt($email,$password);
+        Audit::log('vecino.registrado','user',$userId,null,['name'=>$name,'rut'=>$rut,'commune_id'=>$communeId,'sector_id'=>$sectorId?:null],$userId);
+        $this->redirect('mi-app','Tu cuenta vecinal y ficha de seguridad fueron creadas correctamente.');
+    }
+
     public function index(): void
     {
         $user=Auth::user();
@@ -45,5 +85,24 @@ final class CitizenController extends Controller
     {
         if(str_contains($_SERVER['CONTENT_TYPE']??'','application/json'))$this->json(['ok'=>$ok,'id'=>$id,'message'=>$message,'url'=>$id?url('reportes/'.$id):null],$ok?201:422);
         $this->redirect('mi-app',$message,$ok?'success':'danger');
+    }
+
+    private function ensureSecuritySchema(): void
+    {
+        Database::connection()->exec("CREATE TABLE IF NOT EXISTS user_emergency_contacts (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,user_id BIGINT UNSIGNED NOT NULL,name VARCHAR(120) NOT NULL,relationship VARCHAR(80) NOT NULL,phone VARCHAR(30) NOT NULL,notes VARCHAR(500) NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,UNIQUE KEY uq_user_emergency_contact (user_id),CONSTRAINT fk_uec_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+
+    private function normalizeRut(string $rut): string
+    {
+        $clean=strtoupper(preg_replace('/[^0-9Kk]/','',$rut));
+        return strlen($clean)>1?substr($clean,0,-1).'-'.substr($clean,-1):$clean;
+    }
+
+    private function validRut(string $rut): bool
+    {
+        $clean=str_replace('-','',$rut);if(!preg_match('/^(\d{7,8})([0-9K])$/',$clean,$match))return false;
+        $sum=0;$multiplier=2;for($i=strlen($match[1])-1;$i>=0;$i--){$sum+=(int)$match[1][$i]*$multiplier;$multiplier=$multiplier===7?2:$multiplier+1;}
+        $value=11-($sum%11);$expected=$value===11?'0':($value===10?'K':(string)$value);
+        return $match[2]===$expected;
     }
 }
