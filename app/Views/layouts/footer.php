@@ -1,0 +1,2 @@
+</main><?php if(auth()): ?></div><?php endif; ?><footer class="<?= auth()?'app-footer':'public-footer' ?>"><div class="container">RedVecinal · Seguridad y colaboración comunitaria · <?= date('Y') ?></div></footer><script>window.REDVECINAL={baseUrl:<?= json_encode(rtrim((string)config('base_url',''),'/')) ?>,csrf:<?= json_encode(\App\Core\Csrf::token()) ?>};</script><script src="<?= asset('js/bootstrap.bundle.min.js') ?>"></script><script src="<?= asset('js/app.js') ?>"></script></body></html>
+

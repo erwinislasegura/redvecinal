@@ -1,0 +1,14 @@
+Options -Indexes
+RewriteEngine On
+
+RewriteRule ^(?:app|config|database|storage)/ - [F,L,NC]
+RewriteRule (^|/)\.(?!well-known/) - [F,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+<FilesMatch "\.(?:sql|log|ini|env|md)$">
+  Require all denied
+</FilesMatch>
+
