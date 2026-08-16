@@ -68,7 +68,7 @@ final class ReportController extends Controller
         $report=(new Report())->find((int)$id); if(!$report){http_response_code(404);require BASE_PATH.'/app/Views/errors/404.php';return;}
         $comments=Database::query("SELECT rc.*,u.name,u.role_id FROM report_comments rc JOIN users u ON u.id=rc.user_id WHERE rc.report_id=? AND (rc.is_internal=0 OR ?=1) ORDER BY rc.created_at",[$id,Auth::can('reports.manage')?1:0])->fetchAll();
         $history=Database::query('SELECT h.*,u.name FROM report_status_history h JOIN users u ON u.id=h.user_id WHERE h.report_id=? ORDER BY h.created_at DESC',[$id])->fetchAll();
-        $dispatches=Database::query('SELECT d.*,u.name AS creator_name FROM dispatches d JOIN users u ON u.id=d.created_by WHERE d.report_id=? ORDER BY d.created_at DESC',[$id])->fetchAll();
+        $dispatches=Database::query('SELECT d.*,u.name AS creator_name FROM dispatches d JOIN users u ON u.id=d.created_by WHERE d.report_id=? ORDER BY d.requested_at DESC',[$id])->fetchAll();
         $media=Database::query('SELECT * FROM report_media WHERE report_id=? ORDER BY created_at',[$id])->fetchAll();
         $operators=Database::query("SELECT u.id,u.name,r.name AS role_name FROM users u JOIN roles r ON r.id=u.role_id WHERE u.commune_id=? AND r.slug IN ('operador','respondedor','admin_municipal') AND u.status='activo'",[$report['commune_id']])->fetchAll();
         $this->view('reports/show_wrapper',compact('report','comments','history','dispatches','operators','media')+['title'=>$report['public_code']]);
