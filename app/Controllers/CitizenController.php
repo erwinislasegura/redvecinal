@@ -16,7 +16,8 @@ final class CitizenController extends Controller
         if(Auth::check()){header('Location: '.url('vecinos/'));exit;}
         $communes=Database::query("SELECT * FROM communes WHERE status='activa' ORDER BY region,name")->fetchAll();
         $sectors=Database::query("SELECT s.* FROM sectors s JOIN communes c ON c.id=s.commune_id WHERE s.status='activo' AND c.status='activa' ORDER BY s.name")->fetchAll();
-        $this->view('citizen/landing',compact('communes','sectors')+['title'=>'Descargar app para vecinos','publicPage'=>true]);
+        $registrationErrors=$_SESSION['registration_errors']??[];unset($_SESSION['registration_errors']);
+        $this->view('citizen/landing',compact('communes','sectors','registrationErrors')+['title'=>'Descargar app para vecinos','publicPage'=>true]);
     }
 
     public function registerNeighbor(): void
@@ -30,11 +31,31 @@ final class CitizenController extends Controller
         $commune=$communeId?Database::query("SELECT id FROM communes WHERE id=? AND status='activa'",[$communeId])->fetch():false;
         $sector=$sectorId?Database::query("SELECT id FROM sectors WHERE id=? AND commune_id=? AND status='activo'",[$sectorId,$communeId])->fetch():null;
         $validPhone=static fn(string $value): bool => strlen(preg_replace('/\D/','',$value))>=9;
-        if(!$name||!$this->validRut($rut)||!filter_var($email,FILTER_VALIDATE_EMAIL)||!$validPhone($phone)||!$address||!$commune||($sectorId&&!$sector)||!$contactName||!$validPhone($contactPhone)||!$relationship||strlen($password)<8||$password!==$confirmation||empty($_POST['terms'])){
-            $this->rememberInput();$this->redirect('descargar-vecinos#registro','Completa correctamente los datos personales, domicilio, contacto de emergencia y contraseña.','danger');
+        $errors=[];
+        if(mb_strlen($name)<3)$errors['name']='Ingresa el nombre completo.';
+        if(!$this->validRut($rut))$errors['rut']='El RUT no es válido. Revisa el número y su dígito verificador.';
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL))$errors['email']='Ingresa un correo electrónico válido.';
+        if(!$validPhone($phone))$errors['phone']='El teléfono debe contener al menos 9 dígitos.';
+        if(mb_strlen($address)<5)$errors['address']='Ingresa una dirección completa.';
+        if(!$commune)$errors['commune_id']='Selecciona una comuna activa.';
+        if($sectorId&&!$sector)$errors['sector_id']='El sector seleccionado no pertenece a la comuna.';
+        if(mb_strlen($contactName)<3)$errors['emergency_name']='Ingresa el nombre del contacto de emergencia.';
+        if(mb_strlen($relationship)<2)$errors['emergency_relationship']='Indica la relación con tu contacto.';
+        if(!$validPhone($contactPhone))$errors['emergency_phone']='El teléfono de emergencia debe contener al menos 9 dígitos.';
+        if(strlen($password)<8)$errors['password']='La contraseña debe tener al menos 8 caracteres.';
+        elseif($password!==$confirmation)$errors['password_confirmation']='Las contraseñas no coinciden.';
+        if(empty($_POST['terms']))$errors['terms']='Debes aceptar la autorización para crear la cuenta.';
+        if($errors){
+            $_SESSION['registration_errors']=$errors;$this->rememberInput();
+            $this->redirect('descargar-vecinos#registro','Revisa los campos indicados para completar el registro.','danger');
         }
-        if(Database::query('SELECT COUNT(*) FROM users WHERE email=? OR rut=?',[$email,$rut])->fetchColumn()){
-            $this->rememberInput();$this->redirect('descargar-vecinos#registro','El correo o RUT ya se encuentra registrado.','danger');
+        $existing=Database::query('SELECT email,rut FROM users WHERE email=? OR rut=? LIMIT 1',[$email,$rut])->fetch();
+        if($existing){
+            $duplicateErrors=[];
+            if(mb_strtolower((string)$existing['email'])===$email)$duplicateErrors['email']='Este correo ya tiene una cuenta registrada.';
+            if((string)$existing['rut']===$rut)$duplicateErrors['rut']='Este RUT ya tiene una cuenta registrada.';
+            $_SESSION['registration_errors']=$duplicateErrors;$this->rememberInput();
+            $this->redirect('descargar-vecinos#registro','Ya existe una cuenta con los datos indicados.','danger');
         }
         $this->ensureSecuritySchema();
         $roleId=(int)Database::query("SELECT id FROM roles WHERE slug='vecino' LIMIT 1")->fetchColumn();
@@ -45,7 +66,7 @@ final class CitizenController extends Controller
             $userId=(int)$db->lastInsertId();
             Database::query('INSERT INTO user_emergency_contacts (user_id,name,relationship,phone) VALUES (?,?,?,?)',[$userId,$contactName,$relationship,$contactPhone]);
             $db->commit();
-        }catch(\Throwable $error){if($db->inTransaction())$db->rollBack();$this->rememberInput();$this->redirect('descargar-vecinos#registro','No se pudo crear la cuenta. Revisa si tus datos ya están registrados.','danger');}
+        }catch(\Throwable $error){if($db->inTransaction())$db->rollBack();error_log('RedVecinal registro vecino: '.$error->getMessage());$_SESSION['registration_errors']=['general'=>'No fue posible guardar la cuenta. Verifica que la base de datos esté actualizada e inténtalo nuevamente.'];$this->rememberInput();$this->redirect('descargar-vecinos#registro','No se pudo crear la cuenta vecinal.','danger');}
         Auth::attempt($email,$password);
         Audit::log('vecino.registrado','user',$userId,null,['name'=>$name,'rut'=>$rut,'commune_id'=>$communeId,'sector_id'=>$sectorId?:null],$userId);
         $_SESSION['neighbor_flash']='Tu cuenta vecinal y ficha de seguridad fueron creadas correctamente.';header('Location: '.url('vecinos/'));exit;
