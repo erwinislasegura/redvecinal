@@ -35,7 +35,7 @@ abstract class Controller
 
     protected function rememberInput(): void
     {
-        $_SESSION['_old'] = array_diff_key($_POST, ['password' => true, '_token' => true]);
+        $_SESSION['_old'] = array_diff_key($_POST, ['password' => true, 'password_confirmation' => true, '_token' => true]);
     }
 
     protected function json(array $data, int $status = 200): never
@@ -46,4 +46,3 @@ abstract class Controller
         exit;
     }
 }
-
