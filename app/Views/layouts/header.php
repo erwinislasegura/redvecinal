@@ -20,6 +20,7 @@ $unreadNotifications = $currentUser
   <link rel="stylesheet" href="<?= asset('css/bootstrap.min.css') ?>">
   <link rel="stylesheet" href="<?= asset('css/app.css') ?>">
   <link rel="stylesheet" href="<?= asset('css/admin.css') ?>">
+  <link rel="stylesheet" href="<?= asset('css/admin-modules.css') ?>">
 </head>
 <body class="<?= !empty($publicPage) ? 'public-body' : 'app-body' ?>">
 <?php if (!$isLocalView): ?><div id="offlineBanner" class="offline-banner" hidden><?= svg_icon('alert') ?> Sin conexión: los reportes nuevos se guardarán para enviarse después.</div><?php endif; ?>
@@ -48,12 +49,14 @@ $unreadNotifications = $currentUser
         <a class="<?= active('dispositivos') ?>" href="<?= url('dispositivos') ?>"><?= svg_icon('device') ?><span>Dispositivos</span></a>
       </div>
 
-      <?php if (can('users.manage') || can('communes.manage') || can('roles.manage')): ?>
+      <?php if (can('users.manage') || can('communes.manage') || can('roles.manage') || can('audit.view') || can('settings.manage')): ?>
         <div class="nav-group">
           <div class="nav-label">Administración</div>
           <?php if (can('users.manage')): ?><a class="<?= active('administracion/usuarios') ?>" href="<?= url('administracion/usuarios') ?>"><?= svg_icon('users') ?><span>Usuarios</span></a><?php endif; ?>
           <?php if (can('communes.manage')): ?><a class="<?= active('administracion/comunas') ?>" href="<?= url('administracion/comunas') ?>"><?= svg_icon('map') ?><span>Comunas y sectores</span></a><?php endif; ?>
           <?php if (can('roles.manage')): ?><a class="<?= active('administracion/roles') ?>" href="<?= url('administracion/roles') ?>"><?= svg_icon('shield') ?><span>Roles y permisos</span></a><?php endif; ?>
+          <?php if (can('audit.view')): ?><a class="<?= active('administracion/auditoria') ?>" href="<?= url('administracion/auditoria') ?>"><?= svg_icon('history') ?><span>Auditoría</span></a><?php endif; ?>
+          <?php if (can('settings.manage')): ?><a class="<?= active('administracion/configuracion') ?>" href="<?= url('administracion/configuracion') ?>"><?= svg_icon('settings') ?><span>Configuración</span></a><?php endif; ?>
         </div>
       <?php endif; ?>
     </nav>
