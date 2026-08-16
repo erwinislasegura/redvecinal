@@ -5,6 +5,7 @@ use App\Controllers\AdminController;
 use App\Controllers\AuthController;
 use App\Controllers\DashboardController;
 use App\Controllers\DeviceController;
+use App\Controllers\DispatchController;
 use App\Controllers\PetController;
 use App\Controllers\ReportController;
 
@@ -25,6 +26,9 @@ $router->post('/reportes/{id}/comentarios', [ReportController::class, 'comment']
 $router->post('/reportes/{id}/estado', [ReportController::class, 'status'], ['permission:reports.manage']);
 $router->post('/reportes/{id}/despachar', [ReportController::class, 'dispatch'], ['permission:dispatch.manage']);
 $router->get('/reportes/media/{id}', [ReportController::class, 'media'], ['auth']);
+
+$router->get('/despachos', [DispatchController::class, 'index'], ['permission:dispatch.manage']);
+$router->post('/despachos/{id}/estado', [DispatchController::class, 'status'], ['permission:dispatch.manage']);
 
 $router->get('/mascotas', [PetController::class, 'index'], ['auth']);
 $router->post('/mascotas', [PetController::class, 'store'], ['permission:pets.manage']);
