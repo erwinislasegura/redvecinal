@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
 use App\Models\Report;
@@ -22,7 +23,8 @@ final class ReportController extends Controller
         $user = Auth::user();
         $types = Database::query('SELECT * FROM report_types WHERE active=1 ORDER BY category,sort_order')->fetchAll();
         $sectors = Database::query("SELECT * FROM sectors WHERE commune_id=? AND status='activo' ORDER BY name", [$user['commune_id']])->fetchAll();
-        $this->view('reports/create', ['title'=>'Nuevo reporte','types'=>$types,'sectors'=>$sectors]);
+        $allowAnonymous=setting('reports_anonymous','1',(int)$user['commune_id'])==='1';
+        $this->view('reports/create', ['title'=>'Nuevo reporte','types'=>$types,'sectors'=>$sectors,'allowAnonymous'=>$allowAnonymous]);
     }
 
     public function store(): void
@@ -54,10 +56,10 @@ final class ReportController extends Controller
             'title'=>mb_substr($title,0,160),'description'=>$description,'address'=>trim($input['address']??''),
             'latitude'=>is_numeric($input['latitude']??null)?$input['latitude']:null,'longitude'=>is_numeric($input['longitude']??null)?$input['longitude']:null,
             'priority'=>in_array($input['priority']??'', ['baja','media','alta','critica'],true)?$input['priority']:$type['priority_default'],
-            'is_anonymous'=>!empty($input['is_anonymous'])?1:0,'happened_at'=>!empty($input['happened_at'])?str_replace('T',' ',$input['happened_at']):null,
+            'is_anonymous'=>(setting('reports_anonymous','1',(int)$user['commune_id'])==='1'&&!empty($input['is_anonymous']))?1:0,'happened_at'=>!empty($input['happened_at'])?str_replace('T',' ',$input['happened_at']):null,
         ]);
-        $operators=Database::query("SELECT id FROM users WHERE commune_id=? AND status='activo' AND role_id IN (2,3)",[$user['commune_id']])->fetchAll();
-        foreach($operators as $operator)Database::query('INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,\'new_report\',?,?,?)',[$operator['id'],'Nuevo reporte: '.$title,'Prioridad '.($input['priority']??$type['priority_default']),url('reportes/'.$id)]);
+        if(setting('notifications_enabled','1',(int)$user['commune_id'])==='1'){$operators=Database::query("SELECT id FROM users WHERE commune_id=? AND status='activo' AND role_id IN (2,3)",[$user['commune_id']])->fetchAll();foreach($operators as $operator)Database::query('INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,\'new_report\',?,?,?)',[$operator['id'],'Nuevo reporte: '.$title,'Prioridad '.($input['priority']??$type['priority_default']),url('reportes/'.$id)]);}
+        Audit::log('reporte.creado','report',$id,null,['title'=>$title,'type_id'=>$typeId,'priority'=>$input['priority']??$type['priority_default']]);
         return $id;
     }
 
@@ -75,7 +77,7 @@ final class ReportController extends Controller
     public function comment(string $id): void
     {
         $this->validateCsrf(); $report=(new Report())->find((int)$id); if(!$report)$this->redirect('reportes','Reporte no encontrado.','danger');
-        $body=trim($_POST['body']??''); if($body)Database::query('INSERT INTO report_comments (report_id,user_id,body,is_internal) VALUES (?,?,?,?)',[$id,Auth::user()['id'],$body,(Auth::can('reports.manage')&&!empty($_POST['is_internal']))?1:0]);
+        $body=trim($_POST['body']??''); if($body){$internal=(Auth::can('reports.manage')&&!empty($_POST['is_internal']))?1:0;Database::query('INSERT INTO report_comments (report_id,user_id,body,is_internal) VALUES (?,?,?,?)',[$id,Auth::user()['id'],$body,$internal]);Audit::log('reporte.comentario_agregado','report',$id,null,['internal'=>$internal]);}
         $this->redirect('reportes/'.$id,'Comentario agregado.');
     }
 
@@ -86,6 +88,7 @@ final class ReportController extends Controller
         $assigned=(int)($_POST['assigned_to']??0)?:null;
         Database::query('UPDATE reports SET status=?,assigned_to=?,resolved_at=IF(? IN (\'resuelto\',\'cerrado\'),NOW(),NULL) WHERE id=?',[$status,$assigned,$status,$id]);
         Database::query('INSERT INTO report_status_history (report_id,user_id,old_status,new_status,notes) VALUES (?,?,?,?,?)',[$id,Auth::user()['id'],$report['status'],$status,trim($_POST['notes']??'')]);
+        Audit::log('reporte.estado_actualizado','report',$id,['status'=>$report['status'],'assigned_to'=>$report['assigned_to']],['status'=>$status,'assigned_to'=>$assigned]);
         $this->redirect('reportes/'.$id,'Estado actualizado.');
     }
 
@@ -95,6 +98,7 @@ final class ReportController extends Controller
         $service=$_POST['service']??'otro'; $allowed=['seguridad_municipal','carabineros','bomberos','ambulancia','transito','aseo','alumbrado','otro']; if(!in_array($service,$allowed,true))$service='otro';
         Database::query('INSERT INTO dispatches (report_id,created_by,service,unit_name,contact_name,notes) VALUES (?,?,?,?,?,?)',[$id,Auth::user()['id'],$service,trim($_POST['unit_name']??''),trim($_POST['contact_name']??''),trim($_POST['notes']??'')]);
         Database::query("UPDATE reports SET status='asignado' WHERE id=? AND status IN ('nuevo','validando')",[$id]);
+        Audit::log('reporte.servicio_despachado','report',$id,null,['service'=>$service,'unit_name'=>trim($_POST['unit_name']??'')]);
         $this->redirect('reportes/'.$id,'Servicio despachado y registrado.');
     }
 
