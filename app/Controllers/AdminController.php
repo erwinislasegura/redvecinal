@@ -94,19 +94,21 @@ final class AdminController extends Controller
     public function settings(): void
     {
         $user=Auth::user();$communeId=(int)$user['commune_id'];
-        $defaults=['organization_name'=>'RedVecinal','municipal_phone'=>'','municipal_email'=>'','municipal_address'=>'','reports_anonymous'=>'1','notifications_enabled'=>'1','device_alerts_enabled'=>'1','map_center_lat'=>'-37.4689','map_center_lng'=>'-72.3527','map_zoom'=>'13','report_retention_days'=>'365'];
+        $defaults=['organization_name'=>'RedVecinal','municipal_phone'=>'','municipal_email'=>'','municipal_address'=>'','reports_anonymous'=>'1','notifications_enabled'=>'1','device_alerts_enabled'=>'1','map_commune_id'=>(string)$communeId,'map_center_lat'=>'-37.4689','map_center_lng'=>'-72.3527','map_zoom'=>'13','report_retention_days'=>'365'];
         $rows=Database::query('SELECT setting_key,setting_value FROM settings WHERE commune_id=?',[$communeId])->fetchAll();$settings=$defaults;foreach($rows as $row)$settings[$row['setting_key']]=$row['setting_value'];
+        $communes=Database::query("SELECT id,name,region FROM communes WHERE status='activa' ORDER BY region,name")->fetchAll();
         $contacts=Database::query('SELECT * FROM emergency_contacts WHERE commune_id IS NULL OR commune_id=? ORDER BY commune_id IS NULL DESC,name',[$communeId])->fetchAll();
-        $this->view('admin/settings',compact('settings','contacts')+['title'=>'Configuración']);
+        $this->view('admin/settings',compact('settings','contacts','communes')+['title'=>'Configuración','useMap'=>true]);
     }
 
     public function updateSettings(): void
     {
         $this->validateCsrf();$user=Auth::user();$communeId=(int)$user['commune_id'];
-        $allowed=['organization_name','municipal_phone','municipal_email','municipal_address','map_center_lat','map_center_lng','map_zoom','report_retention_days'];$new=[];
+        $allowed=['organization_name','municipal_phone','municipal_email','municipal_address','map_commune_id','map_center_lat','map_center_lng','map_zoom','report_retention_days'];$new=[];
         foreach($allowed as $key)$new[$key]=trim((string)($_POST[$key]??''));
         $new['reports_anonymous']=!empty($_POST['reports_anonymous'])?'1':'0';$new['notifications_enabled']=!empty($_POST['notifications_enabled'])?'1':'0';$new['device_alerts_enabled']=!empty($_POST['device_alerts_enabled'])?'1':'0';
         if($new['municipal_email']!==''&&!filter_var($new['municipal_email'],FILTER_VALIDATE_EMAIL))$this->redirect('administracion/configuracion','El correo municipal no es válido.','danger');
+        if(!ctype_digit($new['map_commune_id'])||!Database::query("SELECT COUNT(*) FROM communes WHERE id=? AND status='activa'",[(int)$new['map_commune_id']])->fetchColumn())$new['map_commune_id']=(string)$communeId;
         if(!is_numeric($new['map_center_lat'])||(float)$new['map_center_lat'] < -90||(float)$new['map_center_lat'] > 90)$new['map_center_lat']='-37.4689';
         if(!is_numeric($new['map_center_lng'])||(float)$new['map_center_lng'] < -180||(float)$new['map_center_lng'] > 180)$new['map_center_lng']='-72.3527';
         if(!ctype_digit($new['map_zoom'])||(int)$new['map_zoom']<5||(int)$new['map_zoom']>19)$new['map_zoom']='13';
