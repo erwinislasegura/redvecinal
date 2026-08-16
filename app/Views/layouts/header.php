@@ -32,6 +32,33 @@ $unreadNotifications = $currentUser
 <?php if (!$isLocalView): ?><div id="offlineBanner" class="offline-banner" hidden><?= svg_icon('alert') ?> Sin conexión: los reportes nuevos se guardarán para enviarse después.</div><?php endif; ?>
 
 <?php if ($currentUser): ?>
+  <?php if (can('reports.manage')): ?>
+  <div class="admin-panic-alert" id="adminPanicAlert" hidden role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="adminPanicTitle">
+    <div class="admin-panic-backdrop"></div>
+    <section class="admin-panic-panel">
+      <header class="admin-panic-head">
+        <span class="admin-panic-siren" aria-hidden="true">!</span>
+        <div><small>EMERGENCIA EN TIEMPO REAL</small><h2 id="adminPanicTitle">Botón de pánico activado</h2></div>
+        <strong class="admin-panic-count" data-admin-panic-count>1 alerta</strong>
+      </header>
+      <div class="admin-panic-body">
+        <p data-admin-panic-message>Un vecino necesita asistencia inmediata.</p>
+        <div class="admin-panic-data">
+          <div><small>Vecino/a</small><strong data-admin-panic-reporter>—</strong></div>
+          <div><small>Teléfono</small><a data-admin-panic-phone>—</a></div>
+          <div><small>Ubicación informada</small><strong data-admin-panic-address>—</strong></div>
+          <div><small>Hora de activación</small><strong data-admin-panic-time>—</strong></div>
+        </div>
+        <div class="admin-panic-code"><span data-admin-panic-code>ALERTA</span><small>No cierres esta ventana sin confirmar que viste la emergencia.</small></div>
+        <p class="admin-panic-error" data-admin-panic-error hidden></p>
+      </div>
+      <footer class="admin-panic-actions">
+        <a class="btn admin-panic-open" data-admin-panic-open href="#">Abrir emergencia y gestionar</a>
+        <button class="btn admin-panic-ack" type="button" data-admin-panic-ack>Confirmar recepción</button>
+      </footer>
+    </section>
+  </div>
+  <?php endif; ?>
   <aside class="sidebar" id="sidebar" aria-label="Navegación principal">
     <div class="sidebar-head">
       <a class="brand" href="<?= url('panel') ?>">

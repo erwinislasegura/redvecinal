@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Core\Auth;
+use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
 use App\Models\Report;
@@ -34,5 +35,62 @@ final class DashboardController extends Controller
         $contacts = Database::query('SELECT * FROM emergency_contacts WHERE active=1 AND (commune_id IS NULL OR commune_id=?) ORDER BY available_24h DESC,name', [$user['commune_id']])->fetchAll();
         $notifications = Database::query('SELECT * FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 5', [$user['id']])->fetchAll();
         $this->view('dashboard/index', compact('stats','reports','contacts','notifications','mapReports','mapConfig') + ['title'=>'Panel','useMap'=>true]);
+    }
+
+    public function panicAlerts(): void
+    {
+        $user = Auth::user();
+        $alerts = Database::query(
+            "SELECT n.id notification_id,n.title,n.message,n.action_url,n.created_at,
+                    r.id report_id,r.public_code,r.address,r.latitude,r.longitude,r.status,
+                    reporter.name reporter_name,reporter.phone reporter_phone,c.name commune_name
+             FROM notifications n
+             LEFT JOIN reports r ON r.id=CAST(SUBSTRING_INDEX(n.action_url,'/',-1) AS UNSIGNED)
+             LEFT JOIN users reporter ON reporter.id=r.user_id
+             LEFT JOIN communes c ON c.id=r.commune_id
+             WHERE n.user_id=? AND n.type='panic' AND n.read_at IS NULL
+             ORDER BY n.created_at DESC,n.id DESC LIMIT 5",
+            [(int) $user['id']]
+        )->fetchAll();
+
+        $payload = array_map(static function (array $alert): array {
+            $created = strtotime((string) $alert['created_at']);
+            return [
+                'id' => (int) $alert['notification_id'],
+                'report_id' => (int) ($alert['report_id'] ?? 0),
+                'code' => (string) ($alert['public_code'] ?? ''),
+                'title' => (string) $alert['title'],
+                'message' => (string) $alert['message'],
+                'reporter' => (string) ($alert['reporter_name'] ?? 'Vecino/a'),
+                'phone' => (string) ($alert['reporter_phone'] ?? ''),
+                'address' => (string) ($alert['address'] ?? 'Ubicación no informada'),
+                'commune' => (string) ($alert['commune_name'] ?? ''),
+                'latitude' => is_numeric($alert['latitude'] ?? null) ? (float) $alert['latitude'] : null,
+                'longitude' => is_numeric($alert['longitude'] ?? null) ? (float) $alert['longitude'] : null,
+                'status' => (string) ($alert['status'] ?? 'nuevo'),
+                'created_at' => $created ? date(DATE_ATOM, $created) : (string) $alert['created_at'],
+                'action_url' => (string) $alert['action_url'],
+            ];
+        }, $alerts);
+
+        $this->json(['ok' => true, 'alerts' => $payload]);
+    }
+
+    public function acknowledgePanic(string $id): void
+    {
+        $this->validateCsrf();
+        $user = Auth::user();
+        $notificationId = (int) $id;
+        $notification = Database::query(
+            "SELECT id,action_url FROM notifications WHERE id=? AND user_id=? AND type='panic' AND read_at IS NULL",
+            [$notificationId, (int) $user['id']]
+        )->fetch();
+        if (!$notification) {
+            $this->json(['ok' => false, 'message' => 'La alerta ya fue confirmada o no está disponible.'], 404);
+        }
+
+        Database::query('UPDATE notifications SET read_at=NOW() WHERE id=? AND user_id=?', [$notificationId, (int) $user['id']]);
+        Audit::log('panico.alerta_confirmada', 'notification', $notificationId, null, ['action_url' => $notification['action_url']]);
+        $this->json(['ok' => true, 'message' => 'Recepción confirmada.']);
     }
 }

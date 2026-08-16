@@ -11,6 +11,7 @@ use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Csrf;
 use App\Core\Database;
+use App\Core\PanicAlert;
 use App\Models\Report;
 
 if(!Auth::check()){$_SESSION['_flash']['message']='Inicia sesión para abrir la aplicación vecinal.';$_SESSION['_flash']['type']='warning';header('Location: '.url('ingresar?next=vecinos'));exit;}
@@ -35,7 +36,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $type=Database::query("SELECT id FROM report_types WHERE active=1 AND category IN ('seguridad','emergencia') ORDER BY CASE WHEN name LIKE '%Robo%' THEN 0 ELSE 1 END LIMIT 1")->fetch();
         if(!$type){http_response_code(422);header('Content-Type: application/json');echo json_encode(['ok'=>false,'message'=>'No existe un tipo de emergencia activo.']);exit;}
         $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>'Botón de pánico activado desde la aplicación vecinal.','address'=>$user['address']??'','latitude'=>is_numeric($input['latitude']??null)?$input['latitude']:null,'longitude'=>is_numeric($input['longitude']??null)?$input['longitude']:null,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
-        $operators=Database::query("SELECT id FROM users WHERE commune_id=? AND status='activo' AND role_id IN (2,3)",[$user['commune_id']])->fetchAll();foreach($operators as $operator)Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'panic','ALERTA DE PÁNICO',?,?)",[$operator['id'],'Activada por '.$user['name'],url('reportes/'.$id)]);
+        PanicAlert::notify($user,$id);
         Audit::log('app_vecinos.panico','report',$id,null,['latitude'=>$input['latitude']??null,'longitude'=>$input['longitude']??null]);header('Content-Type: application/json');http_response_code(201);echo json_encode(['ok'=>true,'id'=>$id,'message'=>'Alerta enviada a la central.']);exit;
     }
     if($action==='pet'){

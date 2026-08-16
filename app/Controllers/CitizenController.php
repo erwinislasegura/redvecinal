@@ -7,6 +7,7 @@ use App\Core\Auth;
 use App\Core\Audit;
 use App\Core\Controller;
 use App\Core\Database;
+use App\Core\PanicAlert;
 use App\Models\Report;
 
 final class CitizenController extends Controller
@@ -89,10 +90,7 @@ final class CitizenController extends Controller
         $note=trim((string)($input['note']??''));
         $description='Botón de pánico activado desde la aplicación vecinal.' . ($note!==''?' Detalle: '.$note:'');
         $id=(new Report())->create(['user_id'=>$user['id'],'report_type_id'=>$type['id'],'commune_id'=>$user['commune_id'],'sector_id'=>$user['sector_id']?:null,'title'=>'ALERTA DE PÁNICO','description'=>$description,'address'=>trim((string)($input['address']??$user['address']??'')),'latitude'=>$latitude,'longitude'=>$longitude,'priority'=>'critica','is_anonymous'=>0,'happened_at'=>date('Y-m-d H:i:s')]);
-        if(setting('notifications_enabled','1',(int)$user['commune_id'])==='1'){
-            $operators=Database::query("SELECT id FROM users WHERE commune_id=? AND status='activo' AND role_id IN (2,3)",[$user['commune_id']])->fetchAll();
-            foreach($operators as $operator)Database::query("INSERT INTO notifications (user_id,type,title,message,action_url) VALUES (?,'panic','ALERTA DE PÁNICO',?,?)",[$operator['id'],'Activada por '.$user['name'],url('reportes/'.$id)]);
-        }
+        PanicAlert::notify($user,$id);
         Audit::log('panico.activado','report',$id,null,['latitude'=>$latitude,'longitude'=>$longitude]);
         $this->panicResponse(true,$id,'La alerta fue enviada a la central.');
     }

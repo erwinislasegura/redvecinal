@@ -187,6 +187,57 @@
     }catch(error){mapElement.innerHTML='<div class="map-unavailable">No fue posible cargar el mapa.</div>';}
   } else if(mapElement) { mapElement.innerHTML='<div class="map-unavailable">El mapa requiere conexión la primera vez que se abre.</div>'; }
 
+  const panicAlert=document.getElementById('adminPanicAlert');
+  if(panicAlert){
+    const fields={
+      count:panicAlert.querySelector('[data-admin-panic-count]'),message:panicAlert.querySelector('[data-admin-panic-message]'),
+      reporter:panicAlert.querySelector('[data-admin-panic-reporter]'),phone:panicAlert.querySelector('[data-admin-panic-phone]'),
+      address:panicAlert.querySelector('[data-admin-panic-address]'),time:panicAlert.querySelector('[data-admin-panic-time]'),
+      code:panicAlert.querySelector('[data-admin-panic-code]'),open:panicAlert.querySelector('[data-admin-panic-open]'),
+      acknowledge:panicAlert.querySelector('[data-admin-panic-ack]'),error:panicAlert.querySelector('[data-admin-panic-error]')
+    };
+    let alerts=[];let currentId=0;let lastSignaledId=0;let polling=false;let titleTimer=null;const originalTitle=document.title;
+    const signalEmergency=()=>{
+      if(navigator.vibrate)navigator.vibrate([350,140,350,140,600]);
+      try{
+        const AudioContext=window.AudioContext||window.webkitAudioContext;if(!AudioContext)return;
+        const context=new AudioContext();[0,.32,.64].forEach((delay,index)=>{
+          const oscillator=context.createOscillator();const gain=context.createGain();oscillator.type='square';oscillator.frequency.value=index===1?720:920;
+          gain.gain.setValueAtTime(.0001,context.currentTime+delay);gain.gain.exponentialRampToValueAtTime(.14,context.currentTime+delay+.02);gain.gain.exponentialRampToValueAtTime(.0001,context.currentTime+delay+.22);
+          oscillator.connect(gain);gain.connect(context.destination);oscillator.start(context.currentTime+delay);oscillator.stop(context.currentTime+delay+.24);
+        });
+      }catch(error){}
+    };
+    const stopTitleAlert=()=>{if(titleTimer)clearInterval(titleTimer);titleTimer=null;document.title=originalTitle;};
+    const startTitleAlert=()=>{stopTitleAlert();let flip=false;titleTimer=setInterval(()=>{flip=!flip;document.title=flip?'🚨 ALERTA DE PÁNICO':originalTitle;},700);};
+    const renderAlert=()=>{
+      const alert=alerts[0];
+      if(!alert){panicAlert.hidden=true;currentId=0;stopTitleAlert();return;}
+      panicAlert.hidden=false;currentId=alert.id;fields.count.textContent=`${alerts.length} ${alerts.length===1?'alerta':'alertas'}`;
+      fields.message.textContent=alert.message||'Un vecino necesita asistencia inmediata.';fields.reporter.textContent=alert.reporter||'Vecino/a';
+      fields.phone.textContent=alert.phone||'No informado';fields.phone.removeAttribute('href');if(alert.phone)fields.phone.href=`tel:${alert.phone.replace(/[^+\d]/g,'')}`;
+      fields.address.textContent=[alert.address,alert.commune].filter(Boolean).join(' · ');fields.time.textContent=new Intl.DateTimeFormat('es-CL',{dateStyle:'short',timeStyle:'medium'}).format(new Date(alert.created_at));
+      fields.code.textContent=alert.code||`ALERTA #${alert.id}`;fields.open.href=alert.action_url||'#';fields.error.hidden=true;fields.acknowledge.disabled=false;fields.acknowledge.textContent='Confirmar recepción';
+      if(lastSignaledId!==alert.id){lastSignaledId=alert.id;signalEmergency();startTitleAlert();}
+    };
+    const fetchAlerts=async()=>{
+      if(polling)return;polling=true;
+      try{
+        const response=await fetch(base+'/api/alertas-panico',{headers:{Accept:'application/json'},credentials:'same-origin',cache:'no-store'});
+        if(!response.ok)throw new Error('No fue posible consultar las alertas.');const data=await response.json();alerts=Array.isArray(data.alerts)?data.alerts:[];renderAlert();
+      }catch(error){if(!panicAlert.hidden){fields.error.textContent='No se pudo actualizar la alerta. Reintentando automáticamente…';fields.error.hidden=false;}}
+      finally{polling=false;}
+    };
+    fields.acknowledge.addEventListener('click',async()=>{
+      if(!currentId)return;fields.acknowledge.disabled=true;fields.acknowledge.textContent='Confirmando…';fields.error.hidden=true;
+      try{
+        const response=await fetch(`${base}/api/alertas-panico/${currentId}/confirmar`,{method:'POST',headers:{Accept:'application/json','X-CSRF-TOKEN':cfg.csrf},credentials:'same-origin'});
+        if(!response.ok)throw new Error('No fue posible confirmar la alerta.');alerts=alerts.filter(item=>item.id!==currentId);lastSignaledId=0;renderAlert();await fetchAlerts();
+      }catch(error){fields.error.textContent=error.message;fields.error.hidden=false;fields.acknowledge.disabled=false;fields.acknowledge.textContent='Reintentar confirmación';}
+    });
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)fetchAlerts();});fetchAlerts();setInterval(fetchAlerts,5000);
+  }
+
   if(connectionAvailable())syncPanicQueue();
 
   if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register(base + '/service-worker.js', {scope: base + '/'}).catch(() => {}));
