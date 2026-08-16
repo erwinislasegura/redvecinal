@@ -34,7 +34,7 @@ Plataforma web/PWA de seguridad ciudadana y colaboración comunitaria para Chile
 5. Completa los datos MySQL, la comuna inicial y el administrador principal.
 6. Al finalizar, ingresa a la plataforma y elimina o renombra la carpeta `install`.
 
-El instalador importa `database/schema.sql`, crea las tablas, roles, permisos, tipos de reporte, contactos de emergencia, comuna inicial y cuenta de superadministrador. También genera automáticamente `config/database.php`.
+El repositorio incluye `config/database.php` preparado para XAMPP local con la base `redvecinal`, usuario `root` y contraseña vacía. En servidores cPanel, el instalador reemplaza automáticamente esos valores por las credenciales ingresadas. También importa `database/schema.sql` y crea o actualiza sin duplicar la comuna inicial y la cuenta de superadministrador.
 
 ## Funcionamiento sin conexión
 
