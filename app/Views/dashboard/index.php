@@ -18,6 +18,16 @@
   <article class="stat-card stat-neutral"><div class="stat-top"><span class="stat-icon"><?= svg_icon('users') ?></span><span class="stat-trend">Comunidad</span></div><strong><?= $stats['users'] ?></strong><p>Vecinos activos</p><?php if(can('users.manage')): ?><a href="<?= url('administracion/usuarios') ?>">Gestionar usuarios <?= svg_icon('chevron') ?></a><?php else: ?><span class="stat-caption">Red comunal registrada</span><?php endif; ?></article>
 </section>
 
+<section class="card panel-card commune-map-card">
+  <div class="card-header">
+    <div><span class="card-eyebrow">COBERTURA TERRITORIAL</span><h2>Mapa de <?= e($mapConfig['commune']) ?></h2><p>Reportes con ubicación registrada en la comuna.</p></div>
+    <div class="map-filters" aria-label="Filtrar marcadores"><button class="active" data-map-filter="all">Todos</button><button data-map-filter="critica">Críticos</button><button data-map-filter="open">Activos</button></div>
+  </div>
+  <div id="communeMap" class="commune-map" aria-label="Mapa de reportes"></div>
+  <div class="map-footer"><span><i class="map-dot critical"></i> Crítico</span><span><i class="map-dot high"></i> Alta</span><span><i class="map-dot normal"></i> Media o baja</span><b><?= count($mapReports) ?> reportes geolocalizados</b></div>
+</section>
+<script type="application/json" id="dashboardMapData"><?= json_encode(['config'=>$mapConfig,'reports'=>$mapReports],JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES|JSON_HEX_TAG|JSON_HEX_AMP) ?></script>
+
 <div class="dashboard-grid">
   <section class="card panel-card activity-panel">
     <div class="card-header">
